@@ -94,6 +94,7 @@ if (isset($_POST['signin'])) {
 </head>
 
 <body class="bg-[#E6E7EF] text-poppins">
+    <?php include '../includes/logout_toast.php'; ?>
     <main class="max-w-4xl my-10 mx-auto border-6 rounded-xl border-white">
         <div class="relative bg-[#F2F1F6] flex p-3 w-full h-150 rounded-xl">
             <div class="absolute inset-0 rounded-xl overflow-hidden z-3 transition-all duration-500 w-[50%] h-100%"

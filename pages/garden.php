@@ -21,6 +21,7 @@ if (!isset($_SESSION['isLogin'])) {
 </head>
 
 <body>
+    <?php include '../includes/logout_toast.php'; ?>
     <nav class="container mx-auto">
         <div class="fixed top-0 left-0 right-0 z-40 lg:py-4 text-black shadow-sm bg-white transition-all duration-300"
             id="nav-cont">

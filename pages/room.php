@@ -22,6 +22,7 @@ if (!isset($_SESSION['isLogin'])) {
 </head>
 
 <body>
+    <?php include '../includes/logout_toast.php'; ?>
     <nav class="container mx-auto">
         <div class="fixed top-0 left-0 right-0 z-40 lg:py-4 text-black shadow-sm bg-white transition-all duration-300"
             id="nav-cont">
@@ -70,11 +71,77 @@ if (!isset($_SESSION['isLogin'])) {
             </div>
         </section>
         <section class="relative flex items-center justify-center bg-[#F9FAFB] py-12">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 p-6 max-w-7xl relative" id="roomContainer">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 p-6 max-w-7xl relative w-full" id="roomContainer">
+                <?php
+                $defaultRoomImages = [
+                    1 => 'https://images.unsplash.com/photo-1590490360182-c33d57733427?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+                    2 => 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+                    3 => 'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+                    4 => 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+                    5 => 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+                    6 => 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+                ];
+                foreach ($defaultRoomImages as $id => $img) {
+                    mysqli_query($conn, "UPDATE rooms SET image = '$img' WHERE room_id = $id AND (image NOT LIKE '%?%' OR image IS NULL OR image = '')");
+                }
 
-
+                if (!function_exists('getRoomImageUrl')) {
+                    function getRoomImageUrl($img) {
+                        $img = trim($img ?? '');
+                        if (empty($img)) {
+                            return 'https://images.unsplash.com/photo-1590490360182-c33d57733427?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
+                        }
+                        if (strpos($img, 'images.unsplash.com/photo-') !== false && strpos($img, '?') === false) {
+                            $img .= '?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
+                        }
+                        return $img;
+                    }
+                }
+                $roomsRes = mysqli_query($conn, "SELECT * FROM rooms ORDER BY room_id DESC");
+                if ($roomsRes && mysqli_num_rows($roomsRes) > 0) {
+                    while ($room = mysqli_fetch_assoc($roomsRes)) {
+                        $featuresList = !empty($room['features']) ? explode(',', $room['features']) : ['Free WiFi', 'Air Conditioning', 'Private Bathroom'];
+                        $roomImg = getRoomImageUrl($room['image']);
+                        ?>
+                        <div class="rounded-xl pb-2 relative bg-white shadow-sm group hover:shadow-xl transition-all duration-400 flex flex-col justify-between">
+                            <div class="text-white absolute z-10 py-1 px-4 rounded-full top-3 right-3 bg-[#193366] text-sm font-semibold">
+                                Rs.<?= htmlspecialchars($room['price']) ?>/night
+                            </div>
+                            <div class="rounded-t-lg w-full object-cover h-55 overflow-hidden">
+                                <img src="<?= htmlspecialchars($roomImg) ?>" 
+                                     alt="<?= htmlspecialchars($room['label']) ?>" 
+                                     class="w-full h-60 group-hover:scale-110 transition-all duration-500 object-cover"/>
+                            </div>
+                            <div class="p-4 flex flex-col flex-grow justify-between">
+                                <div>
+                                    <span class="flex items-center gap-2 mb-2">
+                                        <i class="fa-solid fa-user-group text-black/60"></i>
+                                        <p class="text-sm text-black/70 font-medium">Up to <?= htmlspecialchars($room['no_of_guests']) ?> guests</p>
+                                    </span>
+                                    <h1 class="text-playfair font-semibold text-xl text-black/80 mb-2"><?= htmlspecialchars($room['label']) ?></h1>
+                                    <p class="text-black/60 mb-4 text-sm"><?= htmlspecialchars($room['description']) ?></p>
+                                    <div class="flex flex-wrap mb-6 gap-2">
+                                        <?php foreach ($featuresList as $feat): 
+                                            $featTrimmed = trim($feat);
+                                            if (empty($featTrimmed)) continue;
+                                        ?>
+                                            <div class="flex items-center gap-2 py-1 bg-[#F7F4ED] px-2 rounded-full">
+                                                <i class="fa-solid fa-check text-xs"></i>
+                                                <h6 class="text-sm text-black/60 font-medium"><?= htmlspecialchars($featTrimmed) ?></h6>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                                <a href="checkout.php?id=<?= $room['room_id'] ?>" class="bg-[#193366] transition-all duration-200 cursor-pointer text-white text-center rounded-full py-2 px-4 hover:bg-[#304775]">Book This Room</a>
+                            </div>
+                        </div>
+                        <?php
+                    }
+                } else {
+                    echo "<div class='col-span-3 text-center py-12 text-gray-500 font-medium'>No rooms available at the moment.</div>";
+                }
+                ?>
             </div>
-
         </section>
         <section class="pb-20 px-6  max-w-7xl mx-auto">
             <div class="max-w-7xl mx-auto rounded-lg bg-[#E3E6EB] p-10 text-center flex flex-col gap-4">

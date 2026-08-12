@@ -2,13 +2,14 @@
 include '../conn.php';
 session_start();
 
-// 1. Check if user is logged in AND is an admin
 if (!isset($_SESSION['isLogin']) || $_SESSION['role'] !== 'admin') {
     header("Location: login.php");
     exit();
 }
 
-// 2. Handle Status Updates (Processed before fetching data so updates reflect immediately)
+$toastMsg = "";
+$toastType = "success";
+
 if (isset($_POST['UpdateStatus']) && isset($_POST['status_change']) && isset($_GET['booking_id'])) {
     $status_change = $_POST['status_change'];
     $booking_id = intval($_GET['booking_id']);
@@ -17,14 +18,118 @@ if (isset($_POST['UpdateStatus']) && isset($_POST['status_change']) && isset($_G
     mysqli_stmt_bind_param($stmtStatus, "si", $status_change, $booking_id);
     
     if (mysqli_stmt_execute($stmtStatus)) {
-        header("Location: adminpage.php");
+        header("Location: adminpage.php?tab=orders&msg=status_updated");
         exit();
     } else {
         echo "<script>alert('Failed to change status');</script>";
     }
 }
 
-// 3. Fetch All Bookings with JOIN (Optimized single query)
+$defaultRoomImages = [
+    1 => 'https://images.unsplash.com/photo-1590490360182-c33d57733427?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    2 => 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    3 => 'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    4 => 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    5 => 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    6 => 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+];
+foreach ($defaultRoomImages as $id => $img) {
+    mysqli_query($conn, "UPDATE rooms SET image = '$img' WHERE room_id = $id AND (image NOT LIKE '%?%' OR image IS NULL OR image = '')");
+}
+
+if (!function_exists('getRoomImageUrl')) {
+    function getRoomImageUrl($img) {
+        $img = trim($img ?? '');
+        if (empty($img)) {
+            return 'https://images.unsplash.com/photo-1590490360182-c33d57733427?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
+        }
+        if (strpos($img, 'images.unsplash.com/photo-') !== false && strpos($img, '?') === false) {
+            $img .= '?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
+        }
+        return $img;
+    }
+}
+
+if (isset($_POST['AddRoom'])) {
+    $label = trim($_POST['label']);
+    $price = intval($_POST['price']);
+    $no_of_guests = intval($_POST['no_of_guests']);
+    $description = trim($_POST['description']);
+    $image = getRoomImageUrl($_POST['image']);
+    $features = trim($_POST['features']);
+    $available = isset($_POST['available']) ? intval($_POST['available']) : 1;
+
+    $stmtAdd = mysqli_prepare($conn, "INSERT INTO rooms (label, price, no_of_guests, description, image, features, available) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    mysqli_stmt_bind_param($stmtAdd, "siisssi", $label, $price, $no_of_guests, $description, $image, $features, $available);
+    
+    if (mysqli_stmt_execute($stmtAdd)) {
+        header("Location: adminpage.php?tab=rooms&msg=room_added");
+        exit();
+    } else {
+        $toastMsg = "Failed to add room: " . mysqli_error($conn);
+        $toastType = "error";
+    }
+}
+
+if (isset($_POST['UpdateRoom']) && isset($_POST['room_id'])) {
+    $room_id = intval($_POST['room_id']);
+    $label = trim($_POST['label']);
+    $price = intval($_POST['price']);
+    $no_of_guests = intval($_POST['no_of_guests']);
+    $description = trim($_POST['description']);
+    $image = getRoomImageUrl($_POST['image']);
+    $features = trim($_POST['features']);
+    $available = intval($_POST['available']);
+
+    $stmtEdit = mysqli_prepare($conn, "UPDATE rooms SET label = ?, price = ?, no_of_guests = ?, description = ?, image = ?, features = ?, available = ? WHERE room_id = ?");
+    mysqli_stmt_bind_param($stmtEdit, "siisssii", $label, $price, $no_of_guests, $description, $image, $features, $available, $room_id);
+    
+    if (mysqli_stmt_execute($stmtEdit)) {
+        header("Location: adminpage.php?tab=rooms&msg=room_updated");
+        exit();
+    } else {
+        $toastMsg = "Failed to update room: " . mysqli_error($conn);
+        $toastType = "error";
+    }
+}
+
+if (isset($_GET['action']) && $_GET['action'] === 'delete_room' && isset($_GET['room_id'])) {
+    $delete_id = intval($_GET['room_id']);
+    
+    $stmtDel = mysqli_prepare($conn, "DELETE FROM rooms WHERE room_id = ?");
+    mysqli_stmt_bind_param($stmtDel, "i", $delete_id);
+    
+    try {
+        if (mysqli_stmt_execute($stmtDel)) {
+            header("Location: adminpage.php?tab=rooms&msg=room_deleted");
+            exit();
+        } else {
+            header("Location: adminpage.php?tab=rooms&msg=has_bookings");
+            exit();
+        }
+    } catch (Exception $e) {
+        header("Location: adminpage.php?tab=rooms&msg=has_bookings");
+        exit();
+    }
+}
+
+$activeTab = $_GET['tab'] ?? 'orders';
+
+if (isset($_GET['msg'])) {
+    if ($_GET['msg'] === 'room_added') {
+        $toastMsg = "Room added successfully!";
+    } elseif ($_GET['msg'] === 'room_updated') {
+        $toastMsg = "Room updated successfully!";
+    } elseif ($_GET['msg'] === 'room_deleted') {
+        $toastMsg = "Room deleted successfully!";
+    } elseif ($_GET['msg'] === 'status_updated') {
+        $toastMsg = "Booking status updated successfully!";
+    } elseif ($_GET['msg'] === 'has_bookings') {
+        $toastMsg = "Cannot delete room with active bookings. Edit availability instead.";
+        $toastType = "error";
+    }
+}
+
 $sql = "SELECT booking.*, users.username, rooms.label 
         FROM booking 
         LEFT JOIN users ON booking.user_id = users.id 
@@ -32,12 +137,9 @@ $sql = "SELECT booking.*, users.username, rooms.label
         ORDER BY booking.booking_id DESC";
 $res = mysqli_query($conn, $sql);
 
-if (!$res) {
-    header("Location: errorpage.php");
-    exit();
-}
+$sqlRooms = "SELECT * FROM rooms ORDER BY room_id DESC";
+$resRooms = mysqli_query($conn, $sqlRooms);
 
-// 4. Handle View Modal Details
 $dataDialoug = null;
 if (isset($_GET['booking_id'])) {
     $id = intval($_GET['booking_id']);
@@ -60,7 +162,7 @@ if (isset($_GET['booking_id'])) {
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Admin - LOTUS - Hotel Management System</title>
+    <title>Admin Panel - LOTUS Hotel</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
         integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw=="
@@ -68,139 +170,248 @@ if (isset($_GET['booking_id'])) {
     <link rel="stylesheet" href="../css/style.css" />
 </head>
 
-<body class="relative">
+<body class="relative bg-gray-50 min-h-screen">
+    <?php include '../includes/logout_toast.php'; ?>
+
+    <?php if (!empty($toastMsg)): ?>
+        <div id="admin-alert" class="fixed top-20 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl text-white <?= $toastType === 'error' ? 'bg-red-600' : 'bg-emerald-600' ?> transition-all duration-300 animate-bounce-once">
+            <i class="fa-solid <?= $toastType === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-check' ?> text-lg"></i>
+            <span class="text-sm font-medium"><?= htmlspecialchars($toastMsg) ?></span>
+            <button onclick="document.getElementById('admin-alert').remove()" class="ml-3 text-white/80 hover:text-white cursor-pointer">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <script>
+            setTimeout(() => {
+                const el = document.getElementById('admin-alert');
+                if (el) el.remove();
+            }, 4000);
+        </script>
+    <?php endif; ?>
+
     <nav class="container mx-auto">
-        <div class="fixed top-0 left-0 right-0 z-40 lg:py-4 text-black shadow-sm bg-white transition-all duration-300"
-            id="nav-cont">
+        <div class="fixed top-0 left-0 right-0 z-40 lg:py-4 text-black shadow-sm bg-white transition-all duration-300" id="nav-cont">
             <div class="flex justify-between w-full items-center max-w-7xl ml-auto mr-auto px-6 py-2 lg:py-0">
                 <a href="../index.php" class="flex gap-2 items-center">
-                    <div
-                        class="w-10 h-10 text-white font-semibold bg-primary text-2xl rounded-full flex justify-center items-center">
-                        L</div>
+                    <div class="w-10 h-10 text-white font-semibold bg-primary text-2xl rounded-full flex justify-center items-center">L</div>
                     <div class="font-bold text-xl flex flex-col">LOTUS</div>
                 </a>
                 <div class="lg:block hidden">
                     <div class="flex gap-8 cursor-pointer ml-2 text-sm font-medium">
-                        <a href="adminpage.php" class="hover:text-[#E5A819] transition-colors duration-150">Admin Panel</a>
+                        <a href="adminpage.php?tab=orders" class="<?= $activeTab === 'orders' ? 'text-[#E5A819]' : 'hover:text-[#E5A819]' ?> transition-colors duration-150">Bookings</a>
+                        <a href="adminpage.php?tab=rooms" class="<?= $activeTab === 'rooms' ? 'text-[#E5A819]' : 'hover:text-[#E5A819]' ?> transition-colors duration-150">Rooms</a>
                     </div>
                 </div>
                 <div class="lg:flex gap-8 items-center hidden">
-                    <?php
-                    if (!isset($_SESSION['isLogin'])) {
-                        echo '<a href="login.php" class="text-base font-medium text-white transition-all duration-300 bg-primary py-2 px-6 rounded-full">Login</a>';
-                    } else {
-                        echo '<div class="flex gap-2 items-center bg-gray-900/10 py-2 px-4 rounded-full text-gray-900">
-                            <div class="p-2 h-9 rounded-full text-white bg-primary text-2xl flex justify-center items-center">' . htmlspecialchars($_SESSION['username'][0]) . '</div>
-                            <h1 class="text-base font-medium text-black transition-all duration-300" id="userName">' . htmlspecialchars($_SESSION['username']) . '</h1>
-                        </div><a href="logout.php" class="text-base font-medium text-white transition-all duration-300 bg-primary py-2 px-6 rounded-full">Logout</a>';
-                    }
-                    ?>
+                    <div class="flex gap-2 items-center bg-gray-900/10 py-2 px-4 rounded-full text-gray-900">
+                        <div class="p-2 h-9 rounded-full text-white bg-primary text-2xl flex justify-center items-center"><?= htmlspecialchars($_SESSION['username'][0]) ?></div>
+                        <h1 class="text-base font-medium text-black" id="userName"><?= htmlspecialchars($_SESSION['username']) ?></h1>
+                    </div>
+                    <a href="logout.php" class="text-base font-medium text-white transition-all duration-300 bg-primary py-2 px-6 rounded-full">Logout</a>
                 </div>
                 <div class="lg:hidden flex"><i class="fa-solid fa-bars text-2xl"></i></div>
             </div>
         </div>
     </nav>
+
     <main>
-        <section class="relative pt-32 pb-20 flex items-center justify-center bg-[#F7F4ED]">
+        <!-- Header Banner & Tabs -->
+        <section class="relative pt-28 pb-10 flex flex-col items-center justify-center bg-[#F7F4ED]">
             <div class="text-center">
-                <h1 class="text-sm tracking-widest text-black/70 font-medium"><i class="text-6xl fa-solid fa-cart-plus"></i></h1>
-                <p class="text-black/80 text-4xl md:text-6xl font-semibold text-playfair mt-4">Orders</p>
+                <h1 class="text-xs tracking-widest text-black/60 font-semibold uppercase">Admin Panel</h1>
+                <p class="text-black/80 text-3xl md:text-5xl font-semibold text-playfair mt-2">
+                    <?= $activeTab === 'rooms' ? 'Room Inventory' : 'Guest Bookings & Orders' ?>
+                </p>
+            </div>
+
+            <!-- Tab Buttons -->
+            <div class="flex justify-center gap-3 mt-6">
+                <a href="adminpage.php?tab=orders" class="px-6 py-2.5 rounded-full font-medium text-sm transition-all duration-200 flex items-center gap-2 <?= ($activeTab === 'orders') ? 'bg-[#193366] text-white shadow-md' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200' ?>">
+                    <i class="fa-solid fa-list-check"></i> Orders & Bookings
+                </a>
+                <a href="adminpage.php?tab=rooms" class="px-6 py-2.5 rounded-full font-medium text-sm transition-all duration-200 flex items-center gap-2 <?= ($activeTab === 'rooms') ? 'bg-[#193366] text-white shadow-md' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200' ?>">
+                    <i class="fa-solid fa-bed"></i> Manage Rooms
+                </a>
             </div>
         </section>
-        <section class="relative pt-8 pb-20 flex items-center justify-center bg-white">
-            <div class="w-7xl max-w-7xl mx-auto rounded-lg">
-                <table class="border-collapse w-full">
-                    <tr class="bg-[#F7F8F9] [&>th]:p-3 border border-gray-300 rounded-lg">
-                        <th>ID</th>
-                        <th>Customer Name</th>
-                        <th>Room</th>
-                        <th>Check-in</th>
-                        <th>Check-Out</th>
-                        <th>Status</th>
-                        <th>Amount</th>
-                        <th>Action</th>
-                    </tr>
-                    <?php
-                    if (mysqli_num_rows($res) > 0) {
-                        while ($row = mysqli_fetch_assoc($res)) {
-                            $statClas = $row['status'] == 'cancelled' ? "bg-red-300 text-red-800" : ($row['status'] == 'pending' ? "bg-yellow-300 text-yellow-800" : ($row['status'] == 'checked out' ? "bg-green-300 text-green-800" : ""));
 
-                            echo "
-                            <tr class='text-center border border-gray-300 hover:bg-[#FAFBFC] transition-colors duration-200'>
-                                <td class='p-3'>" . htmlspecialchars($row['booking_id']) . "</td>
-                                <td class='p-3'>" . htmlspecialchars($row['username'] ?? 'N/A') . "</td>
-                                <td class='p-3'>" . htmlspecialchars($row['label'] ?? 'N/A') . "</td>
-                                <td class='p-3'>" . htmlspecialchars($row['checkin_date']) . "</td>
-                                <td class='p-3'>" . htmlspecialchars($row['checkout_date']) . "</td>
-                                <td class='p-3'> <button class='py-1 px-4 w-30 rounded-full " . $statClas . "'>" . htmlspecialchars($row['status']) . " </button> </td>
-                                <td class='p-3'> Rs. " . htmlspecialchars($row['tprice']) . "</td>
-                                <td class='p-3'><div>
-                                <a href='?booking_id=" . $row['booking_id'] . "'>
-                                <button class='bg-[#c3c1c1] py-1 px-4 rounded-full cursor-pointer hover:bg-gray-200 text-gray-500'><i class='fa-solid fa-eye'></i></button>
-                                </a>
-                                </div></td>
-                            </tr>
-                            ";
+        
+        <?php if ($activeTab === 'orders'): ?>
+        <section class="relative pt-8 pb-20 flex items-center justify-center bg-white px-4">
+            <div class="w-full max-w-7xl mx-auto rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <table class="border-collapse w-full text-left">
+                    <thead>
+                        <tr class="bg-[#F7F8F9] border-b border-gray-200 text-gray-700 text-sm font-semibold">
+                            <th class="p-4 text-center">ID</th>
+                            <th class="p-4">Customer Name</th>
+                            <th class="p-4">Room</th>
+                            <th class="p-4">Check-in</th>
+                            <th class="p-4">Check-Out</th>
+                            <th class="p-4 text-center">Status</th>
+                            <th class="p-4">Amount</th>
+                            <th class="p-4 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php
+                        if ($res && mysqli_num_rows($res) > 0) {
+                            while ($row = mysqli_fetch_assoc($res)) {
+                                $statClas = $row['status'] == 'cancelled' ? "bg-red-100 text-red-700 border border-red-200" : ($row['status'] == 'pending' ? "bg-amber-100 text-amber-700 border border-amber-200" : ($row['status'] == 'checked out' ? "bg-emerald-100 text-emerald-700 border border-emerald-200" : "bg-blue-100 text-blue-700"));
+
+                                echo "
+                                <tr class='border-b border-gray-100 hover:bg-gray-50/80 transition-colors text-sm text-gray-700'>
+                                    <td class='p-4 text-center font-medium'>" . htmlspecialchars($row['booking_id']) . "</td>
+                                    <td class='p-4 font-semibold text-gray-900'>" . htmlspecialchars($row['username'] ?? 'N/A') . "</td>
+                                    <td class='p-4'>" . htmlspecialchars($row['label'] ?? 'N/A') . "</td>
+                                    <td class='p-4'>" . htmlspecialchars($row['checkin_date']) . "</td>
+                                    <td class='p-4'>" . htmlspecialchars($row['checkout_date']) . "</td>
+                                    <td class='p-4 text-center'>
+                                        <span class='py-1 px-3.5 rounded-full text-xs font-semibold capitalize inline-block " . $statClas . "'>" . htmlspecialchars($row['status']) . "</span>
+                                    </td>
+                                    <td class='p-4 font-semibold text-gray-900'>Rs. " . htmlspecialchars($row['tprice']) . "</td>
+                                    <td class='p-4 text-center'>
+                                        <a href='?tab=orders&booking_id=" . $row['booking_id'] . "' class='inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 hover:bg-[#193366] hover:text-white transition-colors text-gray-600'>
+                                            <i class='fa-solid fa-eye text-xs'></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                ";
+                            }
+                        } else {
+                            echo "<tr><td colspan='8' class='p-8 text-center text-gray-500 font-medium'>No bookings found.</td></tr>";
                         }
-                    } else {
-                        echo "<tr><td colspan='8' class='p-6 text-center text-gray-500'>No bookings found.</td></tr>";
-                    }
-                    ?>
+                        ?>
+                    </tbody>
                 </table>
             </div>
         </section>
+        <?php endif; ?>
+
+    
+        <?php if ($activeTab === 'rooms'): ?>
+        <section class="relative pt-8 pb-20 bg-white px-4">
+            <div class="max-w-7xl mx-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800">Rooms List</h2>
+                        <p class="text-xs text-gray-500 mt-1">Add, update or remove room listings visible on the website</p>
+                    </div>
+                    <button onclick="openAddRoomModal()" class="px-5 py-2.5 bg-[#193366] hover:bg-[#304775] text-white text-sm font-semibold rounded-full shadow-md transition-all flex items-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-plus text-xs"></i> Add New Room
+                    </button>
+                </div>
+
+                <div class="w-full rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <table class="border-collapse w-full text-left">
+                        <thead>
+                            <tr class="bg-[#F7F8F9] border-b border-gray-200 text-gray-700 text-sm font-semibold">
+                                <th class="p-4 text-center">ID</th>
+                                <th class="p-4">Image</th>
+                                <th class="p-4">Room Title</th>
+                                <th class="p-4">Price / Night</th>
+                                <th class="p-4 text-center">Guests</th>
+                                <th class="p-4">Features</th>
+                                <th class="p-4 text-center">Available</th>
+                                <th class="p-4 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            if ($resRooms && mysqli_num_rows($resRooms) > 0) {
+                                while ($room = mysqli_fetch_assoc($resRooms)) {
+                                    $roomJson = htmlspecialchars(json_encode($room), ENT_QUOTES, 'UTF-8');
+                                    ?>
+                                    <tr class="border-b border-gray-100 hover:bg-gray-50/80 transition-colors text-sm text-gray-700">
+                                        <td class="p-4 text-center font-medium"><?= htmlspecialchars($room['room_id']) ?></td>
+                                        <td class="p-4">
+                                            <img src="<?= htmlspecialchars(getRoomImageUrl($room['image'])) ?>" 
+                                                 onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80';" 
+                                                 alt="<?= htmlspecialchars($room['label']) ?>" 
+                                                 class="w-16 h-12 object-cover rounded-lg shadow-sm border border-gray-200" />
+                                        </td>
+                                        <td class="p-4 font-bold text-gray-900"><?= htmlspecialchars($room['label']) ?></td>
+                                        <td class="p-4 font-semibold text-emerald-700">Rs. <?= htmlspecialchars($room['price']) ?></td>
+                                        <td class="p-4 text-center"><?= htmlspecialchars($room['no_of_guests']) ?> Person(s)</td>
+                                        <td class="p-4 max-w-xs text-xs text-gray-500 truncate"><?= htmlspecialchars($room['features']) ?></td>
+                                        <td class="p-4 text-center">
+                                            <span class="py-1 px-3 rounded-full text-xs font-semibold <?= $room['available'] > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700' ?>">
+                                                <?= htmlspecialchars($room['available']) ?> Available
+                                            </span>
+                                        </td>
+                                        <td class="p-4 text-center">
+                                            <div class="flex justify-center gap-2">
+                                                <button onclick="openEditRoomModal(<?= $roomJson ?>)" class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors flex items-center justify-center cursor-pointer" title="Edit Room">
+                                                    <i class="fa-solid fa-pen text-xs"></i>
+                                                </button>
+                                                <a href="adminpage.php?tab=rooms&action=delete_room&room_id=<?= $room['room_id'] ?>" onclick="return confirm('Are you sure you want to delete \'<?= htmlspecialchars(addslashes($room['label'])) ?>\'?')" class="w-8 h-8 rounded-full bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-colors flex items-center justify-center" title="Delete Room">
+                                                    <i class="fa-solid fa-trash text-xs"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <?php
+                                }
+                            } else {
+                                echo "<tr><td colspan='8' class='p-8 text-center text-gray-500 font-medium'>No rooms in inventory. Click 'Add New Room' to create one.</td></tr>";
+                            }
+                            ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        <?php endif; ?>
     </main>
 
-    <!-- Modal Dialog -->
-    <div class="inset-0 fixed z-50 <?php echo isset($_GET['booking_id']) ? '' : 'hidden'; ?>" id="dialog_admin">
-        <div class="absolute inset-0 h-screen w-full bg-black/40 flex justify-center items-center">
-            <form class="absolute max-w-lg mx-auto w-lg rounded-lg bg-white p-6" method="POST" action="adminpage.php?booking_id=<?php echo htmlspecialchars($_GET['booking_id'] ?? ''); ?>">
-                <div class="flex w-full justify-between mb-2">
-                    <h1 class="font-medium text-lg">Booking Id. <?php echo htmlspecialchars($dataDialoug['booking_id'] ?? '') ?></h1>
-                    <span class="hover:bg-gray-200 p-2 cursor-pointer text-black/60 flex justify-center items-center rounded-full"
-                        onclick="closeMenu()">
-                        <i class="fa-solid fa-x"></i>
+    <!-- Modal Dialog: View Booking Details -->
+    <div class="inset-0 fixed z-50 <?= isset($_GET['booking_id']) ? '' : 'hidden' ?>" id="dialog_admin">
+        <div class="absolute inset-0 h-screen w-full bg-black/40 backdrop-blur-xs flex justify-center items-center p-4">
+            <form class="relative max-w-lg w-full rounded-2xl bg-white p-6 shadow-2xl" method="POST" action="adminpage.php?tab=orders&booking_id=<?= htmlspecialchars($_GET['booking_id'] ?? '') ?>">
+                <div class="flex w-full justify-between items-center mb-4 pb-3 border-b border-gray-100">
+                    <h3 class="font-bold text-lg text-gray-800">Booking Details #<?= htmlspecialchars($dataDialoug['booking_id'] ?? '') ?></h3>
+                    <span class="hover:bg-gray-100 p-2 cursor-pointer text-gray-500 rounded-full flex justify-center items-center transition-colors" onclick="closeMenu()">
+                        <i class="fa-solid fa-xmark text-lg"></i>
                     </span>
                 </div>
-                <div class="flex w-full">
-                    <div class="w-[50%]">
-                        <div class="mb-2">
-                            <h1 class="text-sm text-black/60 font-medium">Guest</h1>
-                            <p class="text-sm text-black/80 font-medium"><?php echo htmlspecialchars($dataDialoug['username'] ?? '') ?></p>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <div class="mb-3">
+                            <h4 class="text-xs text-gray-500 font-medium">Guest Name</h4>
+                            <p class="text-sm text-gray-800 font-semibold"><?= htmlspecialchars($dataDialoug['username'] ?? '') ?></p>
                         </div>
-                        <div class="mb-2">
-                            <h1 class="text-sm text-black/60 font-medium">Room</h1>
-                            <p class="text-sm text-black/80 font-medium"><?php echo htmlspecialchars($dataDialoug['label'] ?? '') ?></p>
+                        <div class="mb-3">
+                            <h4 class="text-xs text-gray-500 font-medium">Room</h4>
+                            <p class="text-sm text-gray-800 font-semibold"><?= htmlspecialchars($dataDialoug['label'] ?? '') ?></p>
                         </div>
-                        <div class="mb-2">
-                            <h1 class="text-sm text-black/60 font-medium">Check-in</h1>
-                            <p class="text-sm text-black/80 font-medium"><?php echo htmlspecialchars($dataDialoug['checkin_date'] ?? '') ?></p>
+                        <div class="mb-3">
+                            <h4 class="text-xs text-gray-500 font-medium">Check-in</h4>
+                            <p class="text-sm text-gray-800 font-semibold"><?= htmlspecialchars($dataDialoug['checkin_date'] ?? '') ?></p>
                         </div>
-                        <div class="mb-2">
-                            <h1 class="text-sm text-black/60 font-medium">Amount</h1>
-                            <p class="text-sm text-black/80 font-medium">Rs. <?php echo htmlspecialchars($dataDialoug['tprice'] ?? '') ?></p>
+                        <div class="mb-3">
+                            <h4 class="text-xs text-gray-500 font-medium">Total Amount</h4>
+                            <p class="text-sm text-emerald-700 font-bold">Rs. <?= htmlspecialchars($dataDialoug['tprice'] ?? '') ?></p>
                         </div>
                     </div>
-                    <div class="w-[50%]">
-                        <div class="mb-2">
-                            <h1 class="text-sm text-black/60 font-medium">Email</h1>
-                            <p class="text-sm text-black/80 font-medium"><?php echo htmlspecialchars($dataDialoug['email'] ?? '') ?></p>
+                    <div>
+                        <div class="mb-3">
+                            <h4 class="text-xs text-gray-500 font-medium">Email</h4>
+                            <p class="text-sm text-gray-800 font-semibold truncate"><?= htmlspecialchars($dataDialoug['email'] ?? '') ?></p>
                         </div>
-                        <div class="mb-2">
-                            <h1 class="text-sm text-black/60 font-medium">Guests</h1>
-                            <p class="text-sm text-black/80 font-medium"><?php echo htmlspecialchars($dataDialoug['no_of_guests'] ?? '') ?></p>
+                        <div class="mb-3">
+                            <h4 class="text-xs text-gray-500 font-medium">Guests Count</h4>
+                            <p class="text-sm text-gray-800 font-semibold"><?= htmlspecialchars($dataDialoug['no_of_guests'] ?? '') ?></p>
                         </div>
-                        <div class="mb-2">
-                            <h1 class="text-sm text-black/60 font-medium">Check-out</h1>
-                            <p class="text-sm text-black/80 font-medium"><?php echo htmlspecialchars($dataDialoug['checkout_date'] ?? '') ?></p>
+                        <div class="mb-3">
+                            <h4 class="text-xs text-gray-500 font-medium">Check-out</h4>
+                            <p class="text-sm text-gray-800 font-semibold"><?= htmlspecialchars($dataDialoug['checkout_date'] ?? '') ?></p>
                         </div>
-                        <div class="mb-2">
-                            <h1 class="text-sm text-black/60 font-medium">Status</h1>
+                        <div class="mb-3">
+                            <h4 class="text-xs text-gray-500 font-medium">Update Status</h4>
                             <?php
                             if (isset($dataDialoug)) {
                                 echo ($dataDialoug['status'] == 'cancelled' || $dataDialoug['status'] == 'checked out') 
-                                    ? "<h1 class='text-sm text-black/80 font-medium'>" . htmlspecialchars($dataDialoug['status']) . "</h1>" 
-                                    : "<select name='status_change' class='p-1 border border-gray-300 rounded outline-0'> 
+                                    ? "<span class='text-xs font-bold capitalize py-1 px-3 rounded-full inline-block bg-gray-100 text-gray-700'>" . htmlspecialchars($dataDialoug['status']) . "</span>" 
+                                    : "<select name='status_change' class='mt-1 p-1.5 border border-gray-300 rounded-lg text-xs outline-none focus:border-[#193366] w-full'> 
                                         <option value='pending'" . ($dataDialoug['status'] == 'pending' ? 'selected' : '') . ">Pending</option>
                                         <option value='cancelled'" . ($dataDialoug['status'] == 'cancelled' ? 'selected' : '') . ">Cancelled</option>
                                         <option value='checked out'" . ($dataDialoug['status'] == 'checked out' ? 'selected' : '') . ">Checked Out</option>
@@ -214,9 +425,121 @@ if (isset($_GET['booking_id'])) {
                 if (isset($dataDialoug)) {
                     echo ($dataDialoug['status'] == 'cancelled' || $dataDialoug['status'] == 'checked out') 
                         ? ""
-                        : '<button type="submit" class="mt-4 w-full p-2 flex rounded-full text-white justify-center bg-[#193366] hover:bg-[#304775] transition-all duration-200 cursor-pointer" name="UpdateStatus">Update</button>';
+                        : '<button type="submit" class="mt-6 w-full py-2.5 rounded-full text-white font-medium bg-[#193366] hover:bg-[#304775] transition-all cursor-pointer shadow-md text-sm" name="UpdateStatus">Update Status</button>';
                 }
                 ?>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Dialog: Add New Room -->
+    <div class="inset-0 fixed z-50 hidden" id="addRoomModal">
+        <div class="absolute inset-0 h-screen w-full bg-black/50 backdrop-blur-xs flex justify-center items-center p-4">
+            <form class="relative max-w-xl w-full rounded-2xl bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto" method="POST" action="adminpage.php?tab=rooms">
+                <div class="flex w-full justify-between items-center pb-4 mb-4 border-b border-gray-100">
+                    <h3 class="font-bold text-xl text-gray-800"><i class="fa-solid fa-plus-circle mr-2 text-[#193366]"></i>Add New Room</h3>
+                    <span class="hover:bg-gray-100 p-2 cursor-pointer text-gray-500 rounded-full transition-colors" onclick="closeAddRoomModal()">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </span>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Room Title / Name *</label>
+                        <input type="text" name="label" required placeholder="e.g. Deluxe Garden View Room" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#193366]" />
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Price per Night (Rs.) *</label>
+                        <input type="number" name="price" required placeholder="e.g. 50" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#193366]" />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Max Guests *</label>
+                        <input type="number" name="no_of_guests" required min="1" placeholder="e.g. 2" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#193366]" />
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Available Quantity *</label>
+                        <input type="number" name="available" value="1" min="0" required class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#193366]" />
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Image URL *</label>
+                        <input type="text" name="image" required placeholder="https://images.unsplash.com/..." class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#193366]" />
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Features (comma separated)</label>
+                        <input type="text" name="features" placeholder="Free WiFi, Air Conditioning, Private Bathroom, Terrace" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#193366]" />
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Room Description</label>
+                        <textarea name="description" rows="3" placeholder="Write a brief description of the room..." class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#193366]"></textarea>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-100">
+                    <button type="button" onclick="closeAddRoomModal()" class="px-5 py-2 rounded-full border border-gray-300 text-gray-600 hover:bg-gray-100 text-sm font-medium cursor-pointer">Cancel</button>
+                    <button type="submit" name="AddRoom" class="px-6 py-2 rounded-full bg-[#193366] hover:bg-[#304775] text-white text-sm font-medium shadow-md cursor-pointer transition-all">Add Room</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="inset-0 fixed z-50 hidden" id="editRoomModal">
+        <div class="absolute inset-0 h-screen w-full bg-black/50 backdrop-blur-xs flex justify-center items-center p-4">
+            <form class="relative max-w-xl w-full rounded-2xl bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto" method="POST" action="adminpage.php?tab=rooms">
+                <input type="hidden" name="room_id" id="edit_room_id" />
+                <div class="flex w-full justify-between items-center pb-4 mb-4 border-b border-gray-100">
+                    <h3 class="font-bold text-xl text-gray-800"><i class="fa-solid fa-pen-to-square mr-2 text-[#193366]"></i>Edit Room</h3>
+                    <span class="hover:bg-gray-100 p-2 cursor-pointer text-gray-500 rounded-full transition-colors" onclick="closeEditRoomModal()">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </span>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Room Title / Name *</label>
+                        <input type="text" name="label" id="edit_label" required class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#193366]" />
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Price per Night (Rs.) *</label>
+                        <input type="number" name="price" id="edit_price" required class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#193366]" />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Max Guests *</label>
+                        <input type="number" name="no_of_guests" id="edit_no_of_guests" required min="1" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#193366]" />
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Available Quantity *</label>
+                        <input type="number" name="available" id="edit_available" min="0" required class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#193366]" />
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Image URL *</label>
+                        <input type="text" name="image" id="edit_image" required class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#193366]" />
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Features (comma separated)</label>
+                        <input type="text" name="features" id="edit_features" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#193366]" />
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Room Description</label>
+                        <textarea name="description" id="edit_description" rows="3" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#193366]"></textarea>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-100">
+                    <button type="button" onclick="closeEditRoomModal()" class="px-5 py-2 rounded-full border border-gray-300 text-gray-600 hover:bg-gray-100 text-sm font-medium cursor-pointer">Cancel</button>
+                    <button type="submit" name="UpdateRoom" class="px-6 py-2 rounded-full bg-[#193366] hover:bg-[#304775] text-white text-sm font-medium shadow-md cursor-pointer transition-all">Save Changes</button>
+                </div>
             </form>
         </div>
     </div>
@@ -226,7 +549,7 @@ if (isset($_GET['booking_id'])) {
             <div class="grid grid-cols-1 lg:grid-cols-4 md:grid-cols-2 gap-8 justify-between text-white">
                 <span>
                     <div class="flex gap-2 text-white font-bold items-center">
-                        <h2 class="bg-[#193366] p-2 rounded-full w-10 h-10 flex justify-center items-center text-white">M</h2>
+                        <h2 class="bg-[#193366] p-2 rounded-full w-10 h-10 flex justify-center items-center text-white">L</h2>
                         <div>
                             <h1>LOTUS</h1>
                         </div>
@@ -263,10 +586,34 @@ if (isset($_GET['booking_id'])) {
             </div>
         </div>
     </footer>
-    <script type="module" src="../js/script.js"></script>
+    
     <script>
         window.closeMenu = () => {
-            window.location.href = 'adminpage.php';
+            window.location.href = 'adminpage.php?tab=orders';
+        };
+
+        function openAddRoomModal() {
+            document.getElementById('addRoomModal').classList.remove('hidden');
+        }
+
+        function closeAddRoomModal() {
+            document.getElementById('addRoomModal').classList.add('hidden');
+        }
+
+        function openEditRoomModal(room) {
+            document.getElementById('edit_room_id').value = room.room_id;
+            document.getElementById('edit_label').value = room.label;
+            document.getElementById('edit_price').value = room.price;
+            document.getElementById('edit_no_of_guests').value = room.no_of_guests;
+            document.getElementById('edit_available').value = room.available;
+            document.getElementById('edit_image').value = room.image;
+            document.getElementById('edit_features').value = room.features || '';
+            document.getElementById('edit_description').value = room.description || '';
+            document.getElementById('editRoomModal').classList.remove('hidden');
+        }
+
+        function closeEditRoomModal() {
+            document.getElementById('editRoomModal').classList.add('hidden');
         }
     </script>
 </body>

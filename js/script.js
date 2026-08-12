@@ -82,7 +82,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const roomContainer = document.querySelector("#roomContainer");
     let roomCard = "";
 
-    if (roomContainer) {
+    if (roomContainer && roomContainer.children.length === 0) {
         roomDataArr.map((el,i) => {
             roomCard += ` <div class="rounded-xl pb-2 relative bg-white shadow-sm group hover:shadow-xl transition-all duration-400">
                         <div class="text-white absolute z-1 py-px rounded-full px-4 top-3 right-3 bg-[#193366] ">Rs.${el.price}00/night</div>

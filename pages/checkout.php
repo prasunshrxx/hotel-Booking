@@ -79,6 +79,7 @@ if (isset($_POST['book_now'])) {
 </head>
 
 <body class="bg-[#F7F4ED] min-h-screen">
+    <?php include '../includes/logout_toast.php'; ?>
 
     <!-- Header Navigation -->
     <nav class="container mx-auto">
@@ -129,10 +130,20 @@ if (isset($_POST['book_now'])) {
             <div class="lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden h-fit">
                 <div class="relative overflow-hidden">
                     <?php 
-                        // Clean path formatting to prevent double slashes or missing dots
-                        $imgPath = $room['image'] ?? '';
-                        if (strpos($imgPath, '../') === false && strpos($imgPath, '/') !== 0) {
-                            $imgPath = '../' . $imgPath;
+                        $rawImg = trim($room['image'] ?? '');
+                        if (strpos($rawImg, 'http://') === 0 || strpos($rawImg, 'https://') === 0) {
+                            $imgPath = $rawImg;
+                            if (strpos($imgPath, 'images.unsplash.com/photo-') !== false && strpos($imgPath, '?') === false) {
+                                $imgPath .= '?auto=format&fit=crop&w=800&q=80';
+                            }
+                        } else {
+                            $imgPath = $rawImg;
+                            if (!empty($imgPath) && strpos($imgPath, '../') === false && strpos($imgPath, '/') !== 0) {
+                                $imgPath = '../' . $imgPath;
+                            }
+                        }
+                        if (empty($imgPath)) {
+                            $imgPath = 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80';
                         }
                     ?>
                     <img src="<?php echo htmlspecialchars($imgPath); ?>" 
