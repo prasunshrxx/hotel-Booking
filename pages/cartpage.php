@@ -1,0 +1,204 @@
+<?php
+include '../conn.php';
+session_start();
+if (!isset($_SESSION['isLogin'])) {
+    header("location:http://localhost/hotelbooking/pages/login.php ");
+}
+
+
+if (isset($_SESSION['user_id'])) {
+    $user_id = $_SESSION['user_id'];
+    $sql = "SELECT * from booking where user_id = '$user_id'";
+    $res = mysqli_query($conn, $sql);
+    if (!mysqli_num_rows($res) > 0) {
+        // header("location:http://localhost/hotelbooking/pages/errorpage.php ");
+        $Message = "Cart Empty";
+    }
+
+}
+
+
+?><!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rooms</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
+        integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="../Css/style.css" />
+</head>
+
+<body>
+    <nav class="container mx-auto">
+        <div class="fixed top-0 left-0 right-0 z-40 lg:py-4 text-black shadow-sm bg-white transition-all duration-300"
+            id="nav-cont">
+            <div class="flex justify-between w-full items-center max-w-7xl ml-auto mr-auto px-6 py-2 lg:py-0">
+                <a href="../index.php" class="flex gap-2 items-center">
+                    <div
+                        class="w-10 h-10 text-white font-semibold bg-primary text-2xl rounded-full flex justify-center items-center">
+                        L</div>
+                    <div class="font-bold text-xl flex flex-col">LOTUS</div>
+                </a>
+                <div class="lg:block hidden">
+                    <div class="flex gap-8 cursor-pointer ml-2 text-sm font-medium">
+                        <a href="../index.php" class="hover:text-[#E5A819] transition-colors duration-150">Home</a>
+                        <a href="room.php" class="hover:text-[#E5A819] transition-colors duration-150">Rooms</a>
+                        <a href="garden.php" class="hover:text-[#E5A819] transition-colors duration-150">Garden &
+                            Terrace</a>
+                        <a href="cartpage.php" class="text-[#E5A819] transition-colors duration-150">My Cart</a>
+
+                    </div>
+                </div>
+                <div class="lg:flex gap-8 items-center hidden">
+                    <!-- <h1 class="text-sm font-normal cursor-pointer">+977 9765406567</h1> -->
+                    <?php
+                    if (!$_SESSION['isLogin']) {
+                        echo ' <a href="login.php" class=" text-base font-medium text-white transition-all duration-300 bg-primary py-2 px-6 rounded-full">Login</a>';
+                    } else {
+                        echo '<div class=" flex gap-2 items-center bg-gray-900/10 py-2 px-4 rounded-full text-gray-900  ">
+                            <div class=" p-2 h-9 rounded-full text-white bg-primary text-2xl  flex justify-center items-center">' . $_SESSION['username'][0] . '</div>
+                            <h1 class="text-base font-medium text-black transition-all duration-300" id="userName">' . $_SESSION['username'] . '</h1>
+                        </div><a href="logout.php" class=" text-base font-medium text-white transition-all duration-300 bg-primary py-2 px-6 rounded-full">Logout</a>';
+                    }
+
+                    ?>
+                </div>
+                <div class="lg:hidden flex"><i class="fa-solid fa-bars text-2xl"></i></div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="">
+        <section class="relative pt-32 pb-20 flex items-center justify-center bg-[#F7F4ED]">
+            <div class="text-center">
+                <h1 class="text-sm tracking-widest text-black/70 font-medium"><i class="text-6xl
+                 fa-solid fa-cart-plus"></i></h1>
+                <p class="text-black/80 text-4xl md:text-6xl font-semibold text-playfair mt-4">My Cart</p>
+
+            </div>
+        </section>
+        <section class="relative pt-8 pb-20 flex items-center justify-center bg-white">
+            <div class="w-7xl max-w-7xl mx-auto rounded-lg">
+
+                <table class=" border-collapse w-full">
+                    <tr class="bg-[#F7F8F9] [&>th]:p-3  border border-gray-300 rounded-lg ">
+                        <th>ID</th>
+                        <th>Room</th>
+                        <th>Check-in</th>
+                        <th>Check-Out</th>
+                        <th>Status</th>
+                        <th>Amount</th>
+                        <th>Action</th>
+                    </tr>
+                    <?php
+
+                    while ($row = mysqli_fetch_assoc($res)) {
+                        if ($row['status'] !== 'cancelled') {
+
+
+                            $statClas = $row['status'] == 'cancelled' ? "bg-red-300 text-red-800" : ($row['status'] == 'pending' ? "bg-yellow-300 text-yellow-800" : ($row['status'] == 'checked out' ? "bg-green-300 text-green-800" : ""));
+                            $room = $row['room_id'];
+                            $sql = "select label from rooms where room_id=$room ";
+                            $resroom = mysqli_query($conn, $sql);
+                            $roomd = mysqli_fetch_assoc($resroom);
+                            if (!$resroom) {
+                                $Message = "Cant find room.";
+                            } else {
+                                $booking_id = $row['booking_id'];
+                                echo "
+                            <tr class='text-center border border-gray-300 hover:bg-[#FAFBFC] transition-colors duration-200'>
+                        <td class='p-3'>" . $row['booking_id'] . "</td>
+                        <td class='p-3'>" . $roomd['label'] . "</td>
+                        <td class='p-3'>" . $row['checkin_date'] . "</td>
+                        <td class='p-3'>" . $row['checkout_date'] . "</td>
+                        <td class='p-3 '> <span class='px-4 py-px rounded-full ".$statClas."'>" . $row['status'] . "</span></td>
+                        <td class='p-3'>Rs. " . $row['tprice'] . "</td>
+                        <td class='p-3'><div>
+                        <form method='POST'>
+                        " . ($row['status'] == 'checked out' ? "<span class='bg-gray-300 py-px px-4 rounded-full  text-black'>Cancel</span>" : "<a href='cancle.php?roomId=$room&bookingId=$booking_id' class='bg-[#FEE2E2] py-px px-4 rounded-full cursor-pointer hover:bg-red-200 text-red-500' >Cancel</a>
+                        ") . "
+                        </form>
+                        </div></td>
+                        </tr>
+                        ";
+                            }
+                        }
+                    }
+                    ?>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-[#1B2232] pt-10">
+        <div class="p-6 max-w-7xl mx-auto">
+            <div class="grid grid-cols-1 lg:grid-cols-4 md:grid-cols-2 gap-8 justify-between text-white">
+                <span>
+                    <div class="flex gap-2 text-white font-bold items-center">
+                        <h2 class="bg-[#193366] p-2 rounded-full w-10 h-10 flex justify-center items-center text-white">
+                            L</h2>
+                        <div>
+                            <h1>LOTUS</h1>
+                        </div>
+                    </div>
+                    <p class="text-white/60 mt-4">Your quiet home in Kathmandu. Over 10 years of welcoming travelers,
+                        trekkers, and adventurers with warm Nepali hospitality.</p>
+                    <div class="flex gap-2 mt-4">
+                        <span
+                            class="cursor-pointer hover:bg-[#1A3161] transition-all duration-200 bg-[#313846] flex justify-center items-center rounded-full h-10 w-10"><i
+                                class="text-lg fa-brands fa-facebook-f"></i></span>
+                        <span
+                            class="cursor-pointer hover:bg-[#1A3161] transition-all duration-200 bg-[#313846] flex justify-center items-center rounded-full h-10 w-10"><i
+                                class="text-lg fa-brands fa-instagram"></i></span>
+                        <span
+                            class="cursor-pointer hover:bg-[#1A3161] transition-all duration-200 bg-[#313846] flex justify-center items-center rounded-full h-10 w-10"><i
+                                class="text-lg fa-brands fa-viber"></i></span>
+                    </div>
+                </span>
+                <span>
+                    <h1 class="text-lg font-semibold">Quick Links</h1>
+                    <div class="flex gap-2 mt-4">
+                        <span class="text-white/60 flex flex-col gap-2">
+                            <p class="">Home</p>
+                            <p class="">Rooms</p>
+                            <p class="">Garden & Terrace</p>
+                            <p class="">Resturant</p>
+                            <p class="">Contact</p>
+                        </span>
+                    </div>
+                </span>
+                <span>
+                    <h1 class="text-lg font-semibold">Contact Us</h1>
+                    <div
+                        class="mt-4 flex flex-col text-white/60 gap-4 [&_span]:flex [&_span]:items-center [&_span]:gap-2">
+                        <span><i class="fa-solid fa-phone"></i>+977 9765406567</span>
+                        <span><i class="fa-regular fa-envelope"></i>ahenstha@gmail.com</span>
+                        <span><i class="fa-solid fa-location-dot"></i>Kathmandu, Nepal</span>
+                    </div>
+                </span>
+                <span>
+                    <h1 class="text-lg font-semibold">Stay Updated</h1>
+                    <p class="text-white/60 mt-4">Subscribe for exclusive offers and travel tips.</p>
+                    <input type="text" placeholder="Your Email"
+                        class="w-full focus:outline-0 p-3 bg-[#313846] border-gray-500 placeholder:text-base mt-2 border rounded-lg" />
+                    <button
+                        class="w-full py-2 px-4 font-normal bg-[#193366] hover:bg-[#1A3161] transition-all duration-200 text-white text-lg mt-2 cursor-pointer rounded-lg">Subscribe</button>
+                </span>
+            </div>
+            <div class="h-px mt-10 bg-gray-400/30"></div>
+            <div class="justify-between flex flex-col md:flex-row text-center text-white/60 py-6">
+                <h1>© 2026 LOTUS. All rights reserved.</h1>
+                <h1>Created by <a href="https://www.instagram.com/_shrestha__prasun_/"
+                        class="hover:text-blue-500 cursor-pointer transition-colors duration-200">Prasun Shrestha</a></h1>
+            </div>
+        </div>
+    </footer>
+    <script type="module" src="../Js/script.js"></script>
+</body>
+
+</html>
