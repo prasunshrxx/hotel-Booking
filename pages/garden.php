@@ -1,12 +1,8 @@
 <?php
 include '../conn.php';
 session_start();
-if (!isset($_SESSION['isLogin'])) {
-    header("location:http://localhost/hotelbooking/pages/login.php ");
-}
-
-
-?><!doctype html>
+?>
+<!doctype html>
 <html lang="en">
 
 <head>
@@ -43,7 +39,7 @@ if (!isset($_SESSION['isLogin'])) {
                 <div class="lg:flex gap-8 items-center hidden">
                     <!-- <h1 class="text-sm font-normal cursor-pointer">+977 9765406567</h1> -->
                     <?php
-                    if (!$_SESSION['isLogin']) {
+                    if (!isset($_SESSION['isLogin']) || !$_SESSION['isLogin']) {
                         echo ' <a href="login.php" class=" text-base font-medium text-white transition-all duration-300 bg-primary py-2 px-6 rounded-full">Login</a>';
                     } else {
                         echo '<div class=" flex gap-2 items-center bg-gray-900/10 py-2 px-4 rounded-full text-gray-900  ">

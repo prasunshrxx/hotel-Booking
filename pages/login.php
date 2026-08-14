@@ -18,7 +18,18 @@ if (isset($_POST['signup'])) {
     $spassword = $_POST['rpass'];
     $scpassword = $_POST['rcpass'];
 
-    if ($spassword !== $scpassword) {
+    $allowed_domains = ['gmail.com', 'outlook.com'];
+    $email_domain = strtolower(substr(strrchr($semail, '@'), 1));
+
+    if (!filter_var($semail, FILTER_VALIDATE_EMAIL)) {
+        $signup_error = "Please enter a valid email address";
+    } elseif (!in_array($email_domain, $allowed_domains)) {
+        $signup_error = "Only Gmail (gmail.com) and Outlook (outlook.com) addresses are accepted";
+    } elseif (!preg_match("/^[a-zA-Z\s]+$/", $sname)) {
+        $signup_error = "Username should only consist of alphabets";
+    } elseif (strlen($spassword) < 6) {
+        $signup_error = "Password must be at least 6 characters long";
+    } elseif ($spassword !== $scpassword) {
         $signup_error = "Password doesn't match";
     } else {
         $stmt = mysqli_prepare($conn, "SELECT id FROM users WHERE email = ?");
@@ -115,16 +126,16 @@ if (isset($_POST['signin'])) {
                     <form action="" method="POST">
                         <input type="email"
                             class="mt-4 w-full p-2.5 rounded-lg focus:outline-blue-500 outline-blue-500 bg-[#FDFDFE] placeholder:text-gray-500 placeholder:text-sm"
-                            placeholder="Enter email" name="remail" required />
+                            placeholder="Enter email (Gmail or Outlook)" name="remail" pattern="[a-zA-Z0-9._%+\-]+@(gmail\.com|outlook\.com)" title="Only Gmail (gmail.com) or Outlook (outlook.com) addresses are accepted" value="<?php echo isset($_POST['remail']) ? htmlspecialchars($_POST['remail']) : ''; ?>" required />
                         <input type="text"
                             class="mt-4 w-full p-2.5 rounded-lg focus:outline-blue-500 outline-blue-500 bg-[#FDFDFE] placeholder:text-gray-500 placeholder:text-sm"
-                            placeholder="Enter username" name="rname" required />
+                            placeholder="Enter username" name="rname" pattern="[A-Za-z\s]+" title="Username should only consist of alphabets" value="<?php echo isset($_POST['rname']) ? htmlspecialchars($_POST['rname']) : ''; ?>" required />
                         <input type="password"
                             class="mt-4 w-full p-2.5 rounded-lg focus:outline-blue-500 outline-blue-500 bg-[#FDFDFE] placeholder:text-gray-500 placeholder:text-sm"
-                            placeholder="Password" name="rpass" required />
+                            placeholder="Password" name="rpass" minlength="6" required />
                         <input type="password"
                             class="mt-4 w-full p-2.5 rounded-lg focus:outline-blue-500 outline-blue-500 bg-[#FDFDFE] placeholder:text-gray-500 placeholder:text-sm"
-                            placeholder="Confirm Password" name="rcpass" required />
+                            placeholder="Confirm Password" name="rcpass" minlength="6" required />
                         <button type="submit"
                             class="text-sm mt-4 w-full bg-[#f56965] p-2 rounded-lg text-white hover:bg-[#d94b46] transition-all duration-200 cursor-pointer"
                             name="signup">Sign up</button>
@@ -173,6 +184,10 @@ if (isset($_POST['signin'])) {
             LoginBtn.addEventListener("click", () => {
                 SliderElement.classList.remove("translate-x-full");
             });
+
+            <?php if (isset($signup_error)) : ?>
+            SliderElement.classList.add("translate-x-full");
+            <?php endif; ?>
         });
     </script>
 </body>

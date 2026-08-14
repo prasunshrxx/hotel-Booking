@@ -65,7 +65,7 @@ session_start();
     <main class="">
         <section class="relative h-screen flex items-center justify-center">
             <div class="absolute inset-0 bg-cover bg-center bg-fixed"
-                style="background-image: url(https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80)">
+                style="background-image: url(https://media.luxe.digital/most-expensive-hotels-luxe-digital-1-2x1-2400.avif)">
                 <div class="absolute inset-0 w-full bg-black opacity-50"></div>
             </div>
             <div class="w-full relative ml-auto mr-auto max-w-7xl p-6 mt-6">
