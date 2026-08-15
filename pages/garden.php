@@ -37,7 +37,6 @@ session_start();
                     </div>
                 </div>
                 <div class="lg:flex gap-8 items-center hidden">
-                    <!-- <h1 class="text-sm font-normal cursor-pointer">+977 9765406567</h1> -->
                     <?php
                     if (!isset($_SESSION['isLogin']) || !$_SESSION['isLogin']) {
                         echo ' <a href="login.php" class=" text-base font-medium text-white transition-all duration-300 bg-primary py-2 px-6 rounded-full">Login</a>';
@@ -65,8 +64,6 @@ session_start();
             </div>
         </section>
         <section class="relative flex items-center justify-center bg-[#F9FAFB] py-24">
-            <!-- <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 p-6 max-w-7xl relative"
-                id="gardenCOntainer">
 
             </div> -->
 

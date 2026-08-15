@@ -126,7 +126,7 @@ if (isset($_POST['signin'])) {
                     <form action="" method="POST">
                         <input type="email"
                             class="mt-4 w-full p-2.5 rounded-lg focus:outline-blue-500 outline-blue-500 bg-[#FDFDFE] placeholder:text-gray-500 placeholder:text-sm"
-                            placeholder="Enter email (Gmail or Outlook)" name="remail" pattern="[a-zA-Z0-9._%+\-]+@(gmail\.com|outlook\.com)" title="Only Gmail (gmail.com) or Outlook (outlook.com) addresses are accepted" value="<?php echo isset($_POST['remail']) ? htmlspecialchars($_POST['remail']) : ''; ?>" required />
+                            placeholder="Enter email " name="remail" pattern="[a-zA-Z0-9._%+\-]+@(gmail\.com|outlook\.com)" title="Only Gmail (gmail.com) or Outlook (outlook.com) addresses are accepted" value="<?php echo isset($_POST['remail']) ? htmlspecialchars($_POST['remail']) : ''; ?>" required />
                         <input type="text"
                             class="mt-4 w-full p-2.5 rounded-lg focus:outline-blue-500 outline-blue-500 bg-[#FDFDFE] placeholder:text-gray-500 placeholder:text-sm"
                             placeholder="Enter username" name="rname" pattern="[A-Za-z\s]+" title="Username should only consist of alphabets" value="<?php echo isset($_POST['rname']) ? htmlspecialchars($_POST['rname']) : ''; ?>" required />

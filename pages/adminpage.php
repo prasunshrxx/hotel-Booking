@@ -130,15 +130,107 @@ if (isset($_GET['msg'])) {
     }
 }
 
+// Room, status, search, and sorting parameters for Orders view
+$filterRoom   = isset($_GET['room_id']) ? intval($_GET['room_id']) : 0;
+$filterStatus = isset($_GET['status']) ? trim($_GET['status']) : '';
+$searchQuery  = isset($_GET['search']) ? trim($_GET['search']) : '';
+$sortBy       = isset($_GET['sort']) ? trim($_GET['sort']) : 'id_desc';
+
+// Build SQL query dynamically
+$whereClauses = ["1=1"];
+$params = [];
+$paramTypes = "";
+
+if ($filterRoom > 0) {
+    $whereClauses[] = "booking.room_id = ?";
+    $params[] = $filterRoom;
+    $paramTypes .= "i";
+}
+
+if (!empty($filterStatus)) {
+    $whereClauses[] = "booking.status = ?";
+    $params[] = $filterStatus;
+    $paramTypes .= "s";
+}
+
+if (!empty($searchQuery)) {
+    $whereClauses[] = "(users.username LIKE ? OR booking.booking_id LIKE ? OR rooms.label LIKE ?)";
+    $likeSearch = "%" . $searchQuery . "%";
+    $params[] = $likeSearch;
+    $params[] = $likeSearch;
+    $params[] = $likeSearch;
+    $paramTypes .= "sss";
+}
+
+$orderByClause = "booking.booking_id DESC";
+switch ($sortBy) {
+    case 'id_asc':
+        $orderByClause = "booking.booking_id ASC";
+        break;
+    case 'checkin_asc':
+        $orderByClause = "booking.checkin_date ASC";
+        break;
+    case 'checkin_desc':
+        $orderByClause = "booking.checkin_date DESC";
+        break;
+    case 'checkout_asc':
+        $orderByClause = "booking.checkout_date ASC";
+        break;
+    case 'checkout_desc':
+        $orderByClause = "booking.checkout_date DESC";
+        break;
+    case 'room_asc':
+        $orderByClause = "rooms.label ASC";
+        break;
+    case 'room_desc':
+        $orderByClause = "rooms.label DESC";
+        break;
+    case 'price_desc':
+        $orderByClause = "booking.tprice DESC";
+        break;
+    case 'price_asc':
+        $orderByClause = "booking.tprice ASC";
+        break;
+    case 'customer_asc':
+        $orderByClause = "users.username ASC";
+        break;
+}
+
 $sql = "SELECT booking.*, users.username, rooms.label 
         FROM booking 
         LEFT JOIN users ON booking.user_id = users.id 
         LEFT JOIN rooms ON booking.room_id = rooms.room_id 
-        ORDER BY booking.booking_id DESC";
-$res = mysqli_query($conn, $sql);
+        WHERE " . implode(" AND ", $whereClauses) . " 
+        ORDER BY " . $orderByClause;
 
-$sqlRooms = "SELECT * FROM rooms ORDER BY room_id DESC";
+if (!empty($params)) {
+    $stmtBookings = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmtBookings, $paramTypes, ...$params);
+    mysqli_stmt_execute($stmtBookings);
+    $res = mysqli_stmt_get_result($stmtBookings);
+} else {
+    $res = mysqli_query($conn, $sql);
+}
+
+// Fetch all rooms for filter dropdown and room-wise summary stats
+$sqlRooms = "SELECT * FROM rooms ORDER BY label ASC";
 $resRooms = mysqli_query($conn, $sqlRooms);
+$allRoomsList = [];
+if ($resRooms) {
+    while ($rRow = mysqli_fetch_assoc($resRooms)) {
+        $allRoomsList[] = $rRow;
+    }
+}
+
+// Fetch room-wise booking counts for stats cards
+$sqlRoomStats = "SELECT room_id, COUNT(*) as booking_count, SUM(tprice) as total_revenue FROM booking WHERE status != 'cancelled' GROUP BY room_id";
+$resRoomStats = mysqli_query($conn, $sqlRoomStats);
+$roomStats = [];
+if ($resRoomStats) {
+    while ($st = mysqli_fetch_assoc($resRoomStats)) {
+        $roomStats[$st['room_id']] = $st;
+    }
+}
 
 $dataDialoug = null;
 if (isset($_GET['booking_id'])) {
@@ -237,52 +329,124 @@ if (isset($_GET['booking_id'])) {
 
         
         <?php if ($activeTab === 'orders'): ?>
-        <section class="relative pt-8 pb-20 flex items-center justify-center bg-white px-4">
-            <div class="w-full max-w-7xl mx-auto rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <table class="border-collapse w-full text-left">
-                    <thead>
-                        <tr class="bg-[#F7F8F9] border-b border-gray-200 text-gray-700 text-sm font-semibold">
-                            <th class="p-4 text-center">ID</th>
-                            <th class="p-4">Customer Name</th>
-                            <th class="p-4">Room</th>
-                            <th class="p-4">Check-in</th>
-                            <th class="p-4">Check-Out</th>
-                            <th class="p-4 text-center">Status</th>
-                            <th class="p-4">Amount</th>
-                            <th class="p-4 text-center">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php
-                        if ($res && mysqli_num_rows($res) > 0) {
-                            while ($row = mysqli_fetch_assoc($res)) {
-                                $statClas = $row['status'] == 'cancelled' ? "bg-red-100 text-red-700 border border-red-200" : ($row['status'] == 'pending' ? "bg-amber-100 text-amber-700 border border-amber-200" : ($row['status'] == 'checked out' ? "bg-emerald-100 text-emerald-700 border border-emerald-200" : "bg-blue-100 text-blue-700"));
+        <section class="relative pt-8 pb-20 bg-white px-4">
+            <div class="w-full max-w-7xl mx-auto space-y-6">
 
-                                echo "
-                                <tr class='border-b border-gray-100 hover:bg-gray-50/80 transition-colors text-sm text-gray-700'>
-                                    <td class='p-4 text-center font-medium'>" . htmlspecialchars($row['booking_id']) . "</td>
-                                    <td class='p-4 font-semibold text-gray-900'>" . htmlspecialchars($row['username'] ?? 'N/A') . "</td>
-                                    <td class='p-4'>" . htmlspecialchars($row['label'] ?? 'N/A') . "</td>
-                                    <td class='p-4'>" . htmlspecialchars($row['checkin_date']) . "</td>
-                                    <td class='p-4'>" . htmlspecialchars($row['checkout_date']) . "</td>
-                                    <td class='p-4 text-center'>
-                                        <span class='py-1 px-3.5 rounded-full text-xs font-semibold capitalize inline-block " . $statClas . "'>" . htmlspecialchars($row['status']) . "</span>
-                                    </td>
-                                    <td class='p-4 font-semibold text-gray-900'>Rs. " . htmlspecialchars($row['tprice']) . "</td>
-                                    <td class='p-4 text-center'>
-                                        <a href='?tab=orders&booking_id=" . $row['booking_id'] . "' class='inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 hover:bg-[#193366] hover:text-white transition-colors text-gray-600'>
-                                            <i class='fa-solid fa-eye text-xs'></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                                ";
+                <!-- Filters & Search Toolbar -->
+                <form method="GET" action="adminpage.php" class="bg-[#F8FAFC] border border-gray-200 rounded-xl p-4 flex flex-wrap gap-4 items-center justify-between shadow-xs">
+                    <input type="hidden" name="tab" value="orders" />
+                    
+                    <div class="flex flex-wrap gap-3 items-center w-full lg:w-auto">
+                        <!-- Room Filter -->
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-1">
+                                <i class="fa-solid fa-bed text-[#193366]"></i> Room:
+                            </label>
+                            <select name="room_id" onchange="this.form.submit()" class="p-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[#193366] text-gray-800 font-medium">
+                                <option value="0">All Rooms</option>
+                                <?php foreach ($allRoomsList as $rm): ?>
+                                    <option value="<?= $rm['room_id'] ?>" <?= ($filterRoom === intval($rm['room_id'])) ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($rm['label']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <!-- Status Filter -->
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-1">
+                                <i class="fa-solid fa-filter text-[#193366]"></i> Status:
+                            </label>
+                            <select name="status" onchange="this.form.submit()" class="p-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[#193366] text-gray-800 font-medium">
+                                <option value="">All Statuses</option>
+                                <option value="pending" <?= ($filterStatus === 'pending') ? 'selected' : '' ?>>Pending</option>
+                                <option value="checked out" <?= ($filterStatus === 'checked out') ? 'selected' : '' ?>>Checked Out</option>
+                                <option value="cancelled" <?= ($filterStatus === 'cancelled') ? 'selected' : '' ?>>Cancelled</option>
+                            </select>
+                        </div>
+
+                        <!-- Sort By Filter -->
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-1">
+                                <i class="fa-solid fa-arrow-down-short-wide text-[#193366]"></i> Sort By:
+                            </label>
+                            <select name="sort" onchange="this.form.submit()" class="p-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[#193366] text-gray-800 font-medium">
+                                <option value="id_desc" <?= ($sortBy === 'id_desc') ? 'selected' : '' ?>>Booking ID (Newest First)</option>
+                                <option value="id_asc" <?= ($sortBy === 'id_asc') ? 'selected' : '' ?>>Booking ID (Oldest First)</option>
+                                <option value="checkin_asc" <?= ($sortBy === 'checkin_asc') ? 'selected' : '' ?>>Check-in Date (Earliest First)</option>
+                                <option value="checkin_desc" <?= ($sortBy === 'checkin_desc') ? 'selected' : '' ?>>Check-in Date (Latest First)</option>
+                                <option value="room_asc" <?= ($sortBy === 'room_asc') ? 'selected' : '' ?>>Room Name (A - Z)</option>
+                                <option value="price_desc" <?= ($sortBy === 'price_desc') ? 'selected' : '' ?>>Total Amount (High - Low)</option>
+                                <option value="price_asc" <?= ($sortBy === 'price_asc') ? 'selected' : '' ?>>Total Amount (Low - High)</option>
+                                <option value="customer_asc" <?= ($sortBy === 'customer_asc') ? 'selected' : '' ?>>Guest Name (A - Z)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Search Input -->
+                    <div class="flex items-center gap-2 w-full lg:w-auto">
+                        <div class="relative w-full lg:w-64">
+                            <input type="text" name="search" value="<?= htmlspecialchars($searchQuery) ?>" placeholder="Search guest or ID..." class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[#193366]" />
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                        </div>
+                        <button type="submit" class="px-4 py-2 bg-[#193366] text-white text-xs font-semibold rounded-lg hover:bg-[#254685] transition-colors cursor-pointer">
+                            Filter
+                        </button>
+                        <?php if ($filterRoom > 0 || !empty($filterStatus) || !empty($searchQuery) || $sortBy !== 'id_desc'): ?>
+                            <a href="adminpage.php?tab=orders" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-semibold rounded-lg transition-colors" title="Reset Filters">
+                                Reset
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </form>
+
+                <!-- Bookings Table Card -->
+                <div class="rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <table class="border-collapse w-full text-left">
+                        <thead>
+                            <tr class="bg-[#F7F8F9] border-b border-gray-200 text-gray-700 text-sm font-semibold">
+                                <th class="p-4 text-center">ID</th>
+                                <th class="p-4">Customer Name</th>
+                                <th class="p-4">Room</th>
+                                <th class="p-4">Check-in</th>
+                                <th class="p-4">Check-Out</th>
+                                <th class="p-4 text-center">Status</th>
+                                <th class="p-4">Amount</th>
+                                <th class="p-4 text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            if ($res && mysqli_num_rows($res) > 0) {
+                                while ($row = mysqli_fetch_assoc($res)) {
+                                    $statClas = $row['status'] == 'cancelled' ? "bg-red-100 text-red-700 border border-red-200" : ($row['status'] == 'pending' ? "bg-amber-100 text-amber-700 border border-amber-200" : ($row['status'] == 'checked out' ? "bg-emerald-100 text-emerald-700 border border-emerald-200" : "bg-blue-100 text-blue-700"));
+
+                                    echo "
+                                    <tr class='border-b border-gray-100 hover:bg-gray-50/80 transition-colors text-sm text-gray-700'>
+                                        <td class='p-4 text-center font-medium'>" . htmlspecialchars($row['booking_id']) . "</td>
+                                        <td class='p-4 font-semibold text-gray-900'>" . htmlspecialchars($row['username'] ?? 'N/A') . "</td>
+                                        <td class='p-4 font-medium text-blue-900'>" . htmlspecialchars($row['label'] ?? 'N/A') . "</td>
+                                        <td class='p-4'>" . htmlspecialchars($row['checkin_date']) . "</td>
+                                        <td class='p-4'>" . htmlspecialchars($row['checkout_date']) . "</td>
+                                        <td class='p-4 text-center'>
+                                            <span class='py-1 px-3.5 rounded-full text-xs font-semibold capitalize inline-block " . $statClas . "'>" . htmlspecialchars($row['status']) . "</span>
+                                        </td>
+                                        <td class='p-4 font-semibold text-gray-900'>Rs. " . htmlspecialchars(number_format($row['tprice'])) . "</td>
+                                        <td class='p-4 text-center'>
+                                            <a href='?tab=orders&booking_id=" . $row['booking_id'] . "&room_id=" . $filterRoom . "&status=" . urlencode($filterStatus) . "&sort=" . urlencode($sortBy) . "' class='inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 hover:bg-[#193366] hover:text-white transition-colors text-gray-600' title='View & Manage'>
+                                                <i class='fa-solid fa-eye text-xs'></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    ";
+                                }
+                            } else {
+                                echo "<tr><td colspan='8' class='p-12 text-center text-gray-500 font-medium'>No bookings found matching your filter criteria.</td></tr>";
                             }
-                        } else {
-                            echo "<tr><td colspan='8' class='p-8 text-center text-gray-500 font-medium'>No bookings found.</td></tr>";
-                        }
-                        ?>
-                    </tbody>
-                </table>
+                            ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </section>
         <?php endif; ?>
