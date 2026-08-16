@@ -14,16 +14,30 @@ if (isset($_POST['UpdateStatus']) && isset($_POST['status_change']) && isset($_G
     $status_change = $_POST['status_change'];
     $booking_id = intval($_GET['booking_id']);
 
+    // Whitelist allowed statuses to prevent arbitrary writes
+    $allowedStatuses = ['pending', 'confirmed', 'checked out', 'cancelled'];
+    if (!in_array($status_change, $allowedStatuses)) {
+        header("Location: adminpage.php?tab=orders&msg=invalid_status");
+        exit();
+    }
+
     $stmtStatus = mysqli_prepare($conn, "UPDATE booking SET status = ? WHERE booking_id = ?");
     mysqli_stmt_bind_param($stmtStatus, "si", $status_change, $booking_id);
     
     if (mysqli_stmt_execute($stmtStatus)) {
-        header("Location: adminpage.php?tab=orders&msg=status_updated");
+        // Rebuild filter params so we return to the same filtered view
+        $redirectParams = 'tab=orders&msg=status_updated';
+        if (!empty($_GET['room_id']))  $redirectParams .= '&room_id='  . intval($_GET['room_id']);
+        if (!empty($_GET['status']))   $redirectParams .= '&status='   . urlencode($_GET['status']);
+        if (!empty($_GET['sort']))     $redirectParams .= '&sort='     . urlencode($_GET['sort']);
+        if (!empty($_GET['search']))   $redirectParams .= '&search='   . urlencode($_GET['search']);
+        header("Location: adminpage.php?" . $redirectParams);
         exit();
     } else {
         echo "<script>alert('Failed to change status');</script>";
     }
 }
+
 
 $defaultRoomImages = [
     1 => 'https://images.unsplash.com/photo-1590490360182-c33d57733427?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
@@ -410,7 +424,7 @@ if (isset($_GET['booking_id'])) {
                                 <th class="p-4">Room</th>
                                 <th class="p-4">Check-in</th>
                                 <th class="p-4">Check-Out</th>
-                                <th class="p-4 text-center">Status</th>
+
                                 <th class="p-4">Amount</th>
                                 <th class="p-4 text-center">Action</th>
                             </tr>
@@ -419,7 +433,7 @@ if (isset($_GET['booking_id'])) {
                             <?php
                             if ($res && mysqli_num_rows($res) > 0) {
                                 while ($row = mysqli_fetch_assoc($res)) {
-                                    $statClas = $row['status'] == 'cancelled' ? "bg-red-100 text-red-700 border border-red-200" : ($row['status'] == 'pending' ? "bg-amber-100 text-amber-700 border border-amber-200" : ($row['status'] == 'checked out' ? "bg-emerald-100 text-emerald-700 border border-emerald-200" : "bg-blue-100 text-blue-700"));
+
 
                                     echo "
                                     <tr class='border-b border-gray-100 hover:bg-gray-50/80 transition-colors text-sm text-gray-700'>
@@ -428,20 +442,43 @@ if (isset($_GET['booking_id'])) {
                                         <td class='p-4 font-medium text-blue-900'>" . htmlspecialchars($row['label'] ?? 'N/A') . "</td>
                                         <td class='p-4'>" . htmlspecialchars($row['checkin_date']) . "</td>
                                         <td class='p-4'>" . htmlspecialchars($row['checkout_date']) . "</td>
-                                        <td class='p-4 text-center'>
-                                            <span class='py-1 px-3.5 rounded-full text-xs font-semibold capitalize inline-block " . $statClas . "'>" . htmlspecialchars($row['status']) . "</span>
-                                        </td>
                                         <td class='p-4 font-semibold text-gray-900'>Rs. " . htmlspecialchars(number_format($row['tprice'])) . "</td>
-                                        <td class='p-4 text-center'>
-                                            <a href='?tab=orders&booking_id=" . $row['booking_id'] . "&room_id=" . $filterRoom . "&status=" . urlencode($filterStatus) . "&sort=" . urlencode($sortBy) . "' class='inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 hover:bg-[#193366] hover:text-white transition-colors text-gray-600' title='View & Manage'>
-                                                <i class='fa-solid fa-eye text-xs'></i>
-                                            </a>
-                                        </td>
+                                        <td class='p-4'>
+                                             <div class='flex items-center justify-between gap-2 min-w-[140px]'>";
+
+                                    $isTerminal = ($row['status'] === 'cancelled' || $row['status'] === 'checked out');
+
+                                    if ($isTerminal) {
+                                        $termClass = $row['status'] === 'cancelled' ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700';
+                                        echo "<span class='inline-flex items-center gap-1 text-xs font-semibold capitalize py-1 px-2.5 rounded-full $termClass whitespace-nowrap'>
+                                                  <i class='fa-solid fa-lock text-[10px]'></i>
+                                                  " . htmlspecialchars($row['status']) . "
+                                              </span>";
+                                    } else {
+                                        echo "<form method='POST' action='adminpage.php?tab=orders&booking_id=" . $row['booking_id'] . "&room_id=" . $filterRoom . "&status=" . urlencode($filterStatus) . "&sort=" . urlencode($sortBy) . "' class='flex items-center gap-1.5'>
+                                                  <select name='status_change' class='py-1 px-2 border border-gray-300 rounded-lg text-xs outline-none focus:border-[#193366] bg-white cursor-pointer'>
+                                                      <option value='pending'" . ($row['status'] === 'pending' ? ' selected' : '') . ">Pending</option>
+                                                      <option value='confirmed'" . ($row['status'] === 'confirmed' ? ' selected' : '') . ">Confirmed</option>
+                                                      <option value='checked out'" . ($row['status'] === 'checked out' ? ' selected' : '') . ">Checked Out</option>
+                                                      <option value='cancelled'" . ($row['status'] === 'cancelled' ? ' selected' : '') . ">Cancelled</option>
+                                                  </select>
+                                                  <button type='submit' name='UpdateStatus' title='Save status' class='inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#193366] hover:bg-[#254685] text-white transition-colors cursor-pointer flex-shrink-0'>
+                                                      <i class='fa-solid fa-check text-[10px]'></i>
+                                                  </button>
+                                              </form>";
+                                    }
+
+                                    echo "
+                                             <a href='?tab=orders&booking_id=" . $row['booking_id'] . "&room_id=" . $filterRoom . "&status=" . urlencode($filterStatus) . "&sort=" . urlencode($sortBy) . "' class='inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 hover:bg-[#193366] hover:text-white transition-colors text-gray-500 flex-shrink-0 ml-auto' title='View booking details'>
+                                                 <i class='fa-solid fa-chevron-right text-[10px]'></i>
+                                             </a>
+                                         </div>
+                                         </td>
                                     </tr>
                                     ";
                                 }
                             } else {
-                                echo "<tr><td colspan='8' class='p-12 text-center text-gray-500 font-medium'>No bookings found matching your filter criteria.</td></tr>";
+                                echo "<tr><td colspan='7' class='p-12 text-center text-gray-500 font-medium'>No bookings found matching your filter criteria.</td></tr>";
                             }
                             ?>
                         </tbody>
@@ -481,8 +518,8 @@ if (isset($_GET['booking_id'])) {
                         </thead>
                         <tbody>
                             <?php
-                            if ($resRooms && mysqli_num_rows($resRooms) > 0) {
-                                while ($room = mysqli_fetch_assoc($resRooms)) {
+                            if (!empty($allRoomsList)) {
+                                foreach ($allRoomsList as $room) {
                                     $roomJson = htmlspecialchars(json_encode($room), ENT_QUOTES, 'UTF-8');
                                     ?>
                                     <tr class="border-b border-gray-100 hover:bg-gray-50/80 transition-colors text-sm text-gray-700">
@@ -494,7 +531,7 @@ if (isset($_GET['booking_id'])) {
                                                  class="w-16 h-12 object-cover rounded-lg shadow-sm border border-gray-200" />
                                         </td>
                                         <td class="p-4 font-bold text-gray-900"><?= htmlspecialchars($room['label']) ?></td>
-                                        <td class="p-4 font-semibold text-emerald-700">Rs. <?= htmlspecialchars($room['price']) ?></td>
+                                        <td class="p-4 font-semibold text-emerald-700">Rs. <?= htmlspecialchars(number_format($room['price'])) ?></td>
                                         <td class="p-4 text-center"><?= htmlspecialchars($room['no_of_guests']) ?> Person(s)</td>
                                         <td class="p-4 max-w-xs text-xs text-gray-500 truncate"><?= htmlspecialchars($room['features']) ?></td>
                                         <td class="p-4 text-center">
