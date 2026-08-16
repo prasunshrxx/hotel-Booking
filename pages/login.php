@@ -104,41 +104,45 @@ if (isset($_POST['signin'])) {
     <link rel="stylesheet" href="../css/style.css" />
 </head>
 
-<body class="bg-[#E6E7EF] text-poppins">
+<body class="text-poppins min-h-screen relative flex items-center justify-center" style="background: #0a0f1e;">
+    <!-- Full-screen luxury hotel background -->
+    <div class="fixed inset-0 z-0" style="background-image: url('https://dwarikas.com/media/site/1e1069b432-1780289916/dwarikas_elisehassey_7512copy-1920x-q85.webp'); background-size: cover; background-position: center; filter: blur(3px) brightness(0.92); transform: scale(1.05);"></div>
+    <!-- Gradient overlay for depth -->
+    <div class="fixed inset-0 z-0" style="background: linear-gradient(135deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.10) 50%, rgba(0,0,0,0.25) 100%);"></div>
     <?php include '../includes/logout_toast.php'; ?>
-    <main class="max-w-4xl my-10 mx-auto border-6 rounded-xl border-white">
-        <div class="relative bg-[#F2F1F6] flex p-3 w-full h-150 rounded-xl">
+    <main class="relative z-10 max-w-4xl w-full mx-auto my-10 px-4">
+        <div class="relative flex p-3 w-full h-150 rounded-2xl overflow-hidden" style="background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 32px 80px rgba(0,0,0,0.35);">
             <div class="absolute inset-0 rounded-xl overflow-hidden z-3 transition-all duration-500 w-[50%] h-100%"
                 id="slider-nav">
                 <div class="w-full h-full relative">
-                    <img src="https://thumbs.dreamstime.com/b/ultra-detailed-modern-glass-villa-house-covered-snow-ultra-detailed-modern-glass-villa-house-covered-snow-winter-night-421534514.jpg"
+                    <img src="https://www.firstclassmagazine.co/wp-content/uploads/2024/07/room-details-2-pic-supplied-800x1067.jpeg"
                         class="object-cover h-full w-full" alt="Villa Image">
-                    <div class="inset-0 absolute w-full h-full z-4 bg-black/20"></div>
+                    <div class="inset-0 absolute w-full h-full z-4 bg-black/10"></div>
                 </div>
             </div>
             
-            <div class="w-[50%] h-100%" id="login">
-                <div class="text-right pr-8 py-4 text-xs">Already a member? <span class="text-blue-400 cursor-pointer"
+            <div class="w-[50%] h-100% text-white" id="login">
+                <div class="text-right pr-8 py-4 text-xs text-white/70">Already a member? <span class="text-amber-300 cursor-pointer font-semibold"
                         id="login-nav">Login Now</span></div>
                 <div class="flex flex-col p-8 px-14">
-                    <h1 class="text-2xl font-bold text-gray-700 text-center">Welcome to LOTUS</h1>
-                    <p class="text-gray-500 text-sm mt-2 text-center">Create your account to start booking amazing stays.</p>
+                    <h1 class="text-2xl font-bold text-white text-center">Welcome to LOTUS</h1>
+                    <p class="text-white/60 text-sm mt-2 text-center">Create your account to start booking amazing stays.</p>
                     <form action="" method="POST">
                         <input type="email"
-                            class="mt-4 w-full p-2.5 rounded-lg focus:outline-blue-500 outline-blue-500 bg-[#FDFDFE] placeholder:text-gray-500 placeholder:text-sm"
-                            placeholder="Enter email " name="remail" pattern="[a-zA-Z0-9._%+\-]+@(gmail\.com|outlook\.com)" title="Only Gmail (gmail.com) or Outlook (outlook.com) addresses are accepted" value="<?php echo isset($_POST['remail']) ? htmlspecialchars($_POST['remail']) : ''; ?>" required />
+                            class="mt-4 w-full p-2.5 rounded-lg focus:outline-none bg-white/10 border border-white/20 text-white placeholder:text-white/50 placeholder:text-sm focus:border-amber-300 focus:bg-white/15 transition-all"
+                            placeholder="Enter email" name="remail" pattern="[a-zA-Z0-9._%+\-]+@(gmail\.com|outlook\.com)" title="Only Gmail (gmail.com) or Outlook (outlook.com) addresses are accepted" value="<?php echo isset($_POST['remail']) ? htmlspecialchars($_POST['remail']) : ''; ?>" required />
                         <input type="text"
-                            class="mt-4 w-full p-2.5 rounded-lg focus:outline-blue-500 outline-blue-500 bg-[#FDFDFE] placeholder:text-gray-500 placeholder:text-sm"
+                            class="mt-4 w-full p-2.5 rounded-lg focus:outline-none bg-white/10 border border-white/20 text-white placeholder:text-white/50 placeholder:text-sm focus:border-amber-300 focus:bg-white/15 transition-all"
                             placeholder="Enter username" name="rname" pattern="[A-Za-z\s]+" title="Username should only consist of alphabets" value="<?php echo isset($_POST['rname']) ? htmlspecialchars($_POST['rname']) : ''; ?>" required />
                         <input type="password"
-                            class="mt-4 w-full p-2.5 rounded-lg focus:outline-blue-500 outline-blue-500 bg-[#FDFDFE] placeholder:text-gray-500 placeholder:text-sm"
+                            class="mt-4 w-full p-2.5 rounded-lg focus:outline-none bg-white/10 border border-white/20 text-white placeholder:text-white/50 placeholder:text-sm focus:border-amber-300 focus:bg-white/15 transition-all"
                             placeholder="Password" name="rpass" minlength="6" required />
                         <input type="password"
-                            class="mt-4 w-full p-2.5 rounded-lg focus:outline-blue-500 outline-blue-500 bg-[#FDFDFE] placeholder:text-gray-500 placeholder:text-sm"
+                            class="mt-4 w-full p-2.5 rounded-lg focus:outline-none bg-white/10 border border-white/20 text-white placeholder:text-white/50 placeholder:text-sm focus:border-amber-300 focus:bg-white/15 transition-all"
                             placeholder="Confirm Password" name="rcpass" minlength="6" required />
                         <button type="submit"
-                            class="text-sm mt-4 w-full bg-[#f56965] p-2 rounded-lg text-white hover:bg-[#d94b46] transition-all duration-200 cursor-pointer"
-                            name="signup">Sign up</button>
+                            class="text-sm mt-5 w-full bg-amber-400 hover:bg-amber-300 p-2.5 rounded-lg text-gray-900 font-semibold transition-all duration-200 cursor-pointer shadow-lg"
+                            name="signup">Create Account</button>
                     </form>
                     <?php if (isset($signup_error)) {
                         echo "<span class='text-sm mt-2 text-red-500 text-center'>$signup_error</span>";
@@ -146,26 +150,26 @@ if (isset($_POST['signin'])) {
                 </div>
             </div>
 
-            <div class="w-[50%]" id="signin">
-                <div class="text-right pr-8 py-4 text-xs">Not a member? <span class="text-blue-400 cursor-pointer"
+            <div class="w-[50%] text-white" id="signin">
+                <div class="text-right pr-8 py-4 text-xs text-white/70">Not a member? <span class="text-amber-300 cursor-pointer font-semibold"
                         id="register-nav">Register Now</span></div>
                 <div class="flex flex-col justify-center h-120 px-14">
-                    <h1 class="text-2xl font-bold text-gray-700 text-center">Hello Again</h1>
-                    <p class="text-gray-500 text-sm mt-2 text-center">Welcome back you've been missed!</p>
+                    <h1 class="text-2xl font-bold text-white text-center">Hello Again</h1>
+                    <p class="text-white/60 text-sm mt-2 text-center">Welcome back, you've been missed!</p>
                     <form method="POST" class="flex flex-col justify-center">
                         <input type="email"
-                            class="mt-4 w-full p-2.5 rounded-lg focus:outline-blue-500 outline-blue-500 bg-[#FDFDFE] placeholder:text-gray-500 placeholder:text-sm"
+                            class="mt-4 w-full p-2.5 rounded-lg focus:outline-none bg-white/10 border border-white/20 text-white placeholder:text-white/50 placeholder:text-sm focus:border-amber-300 focus:bg-white/15 transition-all"
                             placeholder="Enter email" name="lemail" required />
                         <input type="password"
-                            class="mt-4 w-full p-2.5 rounded-lg focus:outline-blue-500 outline-blue-500 bg-[#FDFDFE] placeholder:text-gray-500 placeholder:text-sm"
+                            class="mt-4 w-full p-2.5 rounded-lg focus:outline-none bg-white/10 border border-white/20 text-white placeholder:text-white/50 placeholder:text-sm focus:border-amber-300 focus:bg-white/15 transition-all"
                             placeholder="Password" name="lpass" required />
-                        <p class="text-xs mt-4 text-right text-red-800 cursor-pointer">Reset Password</p>
+                        <p class="text-xs mt-4 text-right text-amber-300/80 cursor-pointer hover:text-amber-300 transition-colors">Reset Password</p>
                         <button type="submit"
-                            class="text-sm mt-4 bg-[#f56965] p-2 rounded-lg text-white hover:bg-[#d94b46] transition-all duration-200 cursor-pointer"
-                            name="signin">Sign in</button>
+                            class="text-sm mt-5 bg-amber-400 hover:bg-amber-300 p-2.5 rounded-lg text-gray-900 font-semibold transition-all duration-200 cursor-pointer shadow-lg"
+                            name="signin">Sign In</button>
                     </form>
                     <?php if (isset($login_error)) {
-                        echo "<span class='text-sm mt-2 text-red-500 text-center'>$login_error</span>";
+                        echo "<span class='text-sm mt-2 text-red-400 text-center block'>$login_error</span>";
                     } ?>
                 </div>
             </div>
