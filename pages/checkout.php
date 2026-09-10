@@ -2,13 +2,11 @@
 include '../conn.php';
 session_start();
 
-// 1. Ensure user is logged in
 if (!isset($_SESSION['isLogin'])) {
     header("Location: login.php");
     exit();
 }
 
-// 2. Fetch Room Details safely based on URL ID parameter (?id=X)
 $room_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $room = null;
 
@@ -22,16 +20,14 @@ if ($room_id > 0) {
     }
 }
 
-// Redirect if room doesn't exist
 if (!$room) {
     header("Location: rooms.php");
     exit();
 }
 
-// 3. Process Booking Submission
 $errorMsg = "";
 if (isset($_POST['book_now'])) {
-    // Check all common user ID session keys
+
     $user_id = $_SESSION['user_id'] ?? $_SESSION['id'] ?? null;
     
     if (!$user_id) {

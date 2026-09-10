@@ -2,7 +2,7 @@
 $host = "localhost";
 $user = "root";
 $password = "";
-$dbname = "hotelbooking"; // Make sure this matches your MySQL DB name in phpMyAdmin
+$dbname = "hotelbooking";
 
 $conn = mysqli_connect($host, $user, $password, $dbname);
 

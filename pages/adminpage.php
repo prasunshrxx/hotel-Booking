@@ -69,19 +69,41 @@ if (isset($_POST['AddRoom'])) {
     $price = intval($_POST['price']);
     $no_of_guests = intval($_POST['no_of_guests']);
     $description = trim($_POST['description']);
-    $image = getRoomImageUrl($_POST['image']);
     $features = trim($_POST['features']);
     $available = isset($_POST['available']) ? intval($_POST['available']) : 1;
 
-    $stmtAdd = mysqli_prepare($conn, "INSERT INTO rooms (label, price, no_of_guests, description, image, features, available) VALUES (?, ?, ?, ?, ?, ?, ?)");
-    mysqli_stmt_bind_param($stmtAdd, "siisssi", $label, $price, $no_of_guests, $description, $image, $features, $available);
-    
-    if (mysqli_stmt_execute($stmtAdd)) {
-        header("Location: adminpage.php?tab=rooms&msg=room_added");
-        exit();
+    // Determine image: uploaded file takes priority over URL
+    $image = '';
+    if (!empty($_FILES['image_file']['name'])) {
+        $uploadDir = '../assets/uploads/';
+        $ext = strtolower(pathinfo($_FILES['image_file']['name'], PATHINFO_EXTENSION));
+        $allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+        if (in_array($ext, $allowed) && $_FILES['image_file']['error'] === UPLOAD_ERR_OK) {
+            $filename = uniqid('room_', true) . '.' . $ext;
+            if (move_uploaded_file($_FILES['image_file']['tmp_name'], $uploadDir . $filename)) {
+                $image = '../assets/uploads/' . $filename;
+            } else {
+                $toastMsg = "Failed to upload image file.";
+                $toastType = "error";
+            }
+        } else {
+            $toastMsg = "Invalid image file type.";
+            $toastType = "error";
+        }
     } else {
-        $toastMsg = "Failed to add room: " . mysqli_error($conn);
-        $toastType = "error";
+        $image = getRoomImageUrl(trim($_POST['image_url'] ?? ''));
+    }
+
+    if (empty($toastMsg)) {
+        $stmtAdd = mysqli_prepare($conn, "INSERT INTO rooms (label, price, no_of_guests, description, image, features, available) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        mysqli_stmt_bind_param($stmtAdd, "siisssi", $label, $price, $no_of_guests, $description, $image, $features, $available);
+        if (mysqli_stmt_execute($stmtAdd)) {
+            header("Location: adminpage.php?tab=rooms&msg=room_added");
+            exit();
+        } else {
+            $toastMsg = "Failed to add room: " . mysqli_error($conn);
+            $toastType = "error";
+        }
     }
 }
 
@@ -91,19 +113,41 @@ if (isset($_POST['UpdateRoom']) && isset($_POST['room_id'])) {
     $price = intval($_POST['price']);
     $no_of_guests = intval($_POST['no_of_guests']);
     $description = trim($_POST['description']);
-    $image = getRoomImageUrl($_POST['image']);
     $features = trim($_POST['features']);
     $available = intval($_POST['available']);
 
-    $stmtEdit = mysqli_prepare($conn, "UPDATE rooms SET label = ?, price = ?, no_of_guests = ?, description = ?, image = ?, features = ?, available = ? WHERE room_id = ?");
-    mysqli_stmt_bind_param($stmtEdit, "siisssii", $label, $price, $no_of_guests, $description, $image, $features, $available, $room_id);
-    
-    if (mysqli_stmt_execute($stmtEdit)) {
-        header("Location: adminpage.php?tab=rooms&msg=room_updated");
-        exit();
+    // Determine image: uploaded file takes priority over URL
+    $image = '';
+    if (!empty($_FILES['image_file']['name'])) {
+        $uploadDir = '../assets/uploads/';
+        $ext = strtolower(pathinfo($_FILES['image_file']['name'], PATHINFO_EXTENSION));
+        $allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+        if (in_array($ext, $allowed) && $_FILES['image_file']['error'] === UPLOAD_ERR_OK) {
+            $filename = uniqid('room_', true) . '.' . $ext;
+            if (move_uploaded_file($_FILES['image_file']['tmp_name'], $uploadDir . $filename)) {
+                $image = '../assets/uploads/' . $filename;
+            } else {
+                $toastMsg = "Failed to upload image file.";
+                $toastType = "error";
+            }
+        } else {
+            $toastMsg = "Invalid image file type.";
+            $toastType = "error";
+        }
     } else {
-        $toastMsg = "Failed to update room: " . mysqli_error($conn);
-        $toastType = "error";
+        $image = getRoomImageUrl(trim($_POST['image_url'] ?? ''));
+    }
+
+    if (empty($toastMsg)) {
+        $stmtEdit = mysqli_prepare($conn, "UPDATE rooms SET label = ?, price = ?, no_of_guests = ?, description = ?, image = ?, features = ?, available = ? WHERE room_id = ?");
+        mysqli_stmt_bind_param($stmtEdit, "siisssii", $label, $price, $no_of_guests, $description, $image, $features, $available, $room_id);
+        if (mysqli_stmt_execute($stmtEdit)) {
+            header("Location: adminpage.php?tab=rooms&msg=room_updated");
+            exit();
+        } else {
+            $toastMsg = "Failed to update room: " . mysqli_error($conn);
+            $toastType = "error";
+        }
     }
 }
 
@@ -278,6 +322,7 @@ if (isset($_GET['booking_id'])) {
 
 <body class="relative bg-gray-50 min-h-screen">
     <?php include '../includes/logout_toast.php'; ?>
+    <?php include '../includes/login_toast.php'; ?>
 
     <?php if (!empty($toastMsg)): ?>
         <div id="admin-alert" class="fixed top-20 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl text-white <?= $toastType === 'error' ? 'bg-red-600' : 'bg-emerald-600' ?> transition-all duration-300 animate-bounce-once">
@@ -636,7 +681,7 @@ if (isset($_GET['booking_id'])) {
     <!-- Modal Dialog: Add New Room -->
     <div class="inset-0 fixed z-50 hidden" id="addRoomModal">
         <div class="absolute inset-0 h-screen w-full bg-black/50 backdrop-blur-xs flex justify-center items-center p-4">
-            <form class="relative max-w-xl w-full rounded-2xl bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto" method="POST" action="adminpage.php?tab=rooms">
+            <form class="relative max-w-xl w-full rounded-2xl bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto" method="POST" action="adminpage.php?tab=rooms" enctype="multipart/form-data">
                 <div class="flex w-full justify-between items-center pb-4 mb-4 border-b border-gray-100">
                     <h3 class="font-bold text-xl text-gray-800"><i class="fa-solid fa-plus-circle mr-2 text-[#193366]"></i>Add New Room</h3>
                     <span class="hover:bg-gray-100 p-2 cursor-pointer text-gray-500 rounded-full transition-colors" onclick="closeAddRoomModal()">
@@ -665,9 +710,34 @@ if (isset($_GET['booking_id'])) {
                         <input type="number" name="available" value="1" min="0" required class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#193366]" />
                     </div>
 
+                    <!-- Image Picker: Upload or URL -->
                     <div class="md:col-span-2">
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">Image URL *</label>
-                        <input type="text" name="image" required placeholder="https://images.unsplash.com/..." class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#193366]" />
+                        <label class="block text-xs font-semibold text-gray-600 mb-2">Room Image *</label>
+                        <!-- Tab Toggle -->
+                        <div class="flex rounded-lg overflow-hidden border border-gray-200 mb-3 text-xs font-semibold">
+                            <button type="button" id="add-tab-upload" onclick="switchAddTab('upload')" class="flex-1 py-2 bg-[#193366] text-white transition-colors"><i class="fa-solid fa-upload mr-1"></i>Upload File</button>
+                            <button type="button" id="add-tab-url" onclick="switchAddTab('url')" class="flex-1 py-2 bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"><i class="fa-solid fa-link mr-1"></i>Image URL</button>
+                        </div>
+                        <!-- Upload panel -->
+                        <div id="add-panel-upload">
+                            <label for="add_image_file" id="add-drop-zone" class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-[#193366] hover:bg-blue-50/30 transition-all group">
+                                <i class="fa-solid fa-cloud-arrow-up text-2xl text-gray-300 group-hover:text-[#193366] transition-colors mb-1"></i>
+                                <span class="text-xs text-gray-400 group-hover:text-[#193366]">Click to browse or drag & drop</span>
+                                <span class="text-xs text-gray-300 mt-0.5">JPG, PNG, WEBP, GIF</span>
+                                <input type="file" id="add_image_file" name="image_file" accept="image/*" class="hidden" onchange="previewAddImage(event)" />
+                            </label>
+                            <div id="add-img-preview" class="mt-2 hidden">
+                                <img id="add-img-preview-img" src="" alt="Preview" class="w-full h-40 object-cover rounded-xl border border-gray-200 shadow-sm" />
+                                <button type="button" onclick="clearAddImage()" class="mt-1 text-xs text-red-400 hover:text-red-600"><i class="fa-solid fa-xmark mr-1"></i>Remove</button>
+                            </div>
+                        </div>
+                        <!-- URL panel -->
+                        <div id="add-panel-url" class="hidden">
+                            <input type="text" name="image_url" id="add_image_url" placeholder="https://images.unsplash.com/..." class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#193366]" oninput="previewAddUrl(this.value)" />
+                            <div id="add-url-preview" class="mt-2 hidden">
+                                <img id="add-url-preview-img" src="" alt="Preview" class="w-full h-40 object-cover rounded-xl border border-gray-200 shadow-sm" />
+                            </div>
+                        </div>
                     </div>
 
                     <div class="md:col-span-2">
@@ -691,7 +761,7 @@ if (isset($_GET['booking_id'])) {
 
     <div class="inset-0 fixed z-50 hidden" id="editRoomModal">
         <div class="absolute inset-0 h-screen w-full bg-black/50 backdrop-blur-xs flex justify-center items-center p-4">
-            <form class="relative max-w-xl w-full rounded-2xl bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto" method="POST" action="adminpage.php?tab=rooms">
+            <form class="relative max-w-xl w-full rounded-2xl bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto" method="POST" action="adminpage.php?tab=rooms" enctype="multipart/form-data">
                 <input type="hidden" name="room_id" id="edit_room_id" />
                 <div class="flex w-full justify-between items-center pb-4 mb-4 border-b border-gray-100">
                     <h3 class="font-bold text-xl text-gray-800"><i class="fa-solid fa-pen-to-square mr-2 text-[#193366]"></i>Edit Room</h3>
@@ -721,9 +791,34 @@ if (isset($_GET['booking_id'])) {
                         <input type="number" name="available" id="edit_available" min="0" required class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#193366]" />
                     </div>
 
+                    <!-- Image Picker: Upload or URL -->
                     <div class="md:col-span-2">
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">Image URL *</label>
-                        <input type="text" name="image" id="edit_image" required class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#193366]" />
+                        <label class="block text-xs font-semibold text-gray-600 mb-2">Room Image</label>
+                        <!-- Tab Toggle -->
+                        <div class="flex rounded-lg overflow-hidden border border-gray-200 mb-3 text-xs font-semibold">
+                            <button type="button" id="edit-tab-upload" onclick="switchEditTab('upload')" class="flex-1 py-2 bg-[#193366] text-white transition-colors"><i class="fa-solid fa-upload mr-1"></i>Upload File</button>
+                            <button type="button" id="edit-tab-url" onclick="switchEditTab('url')" class="flex-1 py-2 bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"><i class="fa-solid fa-link mr-1"></i>Image URL</button>
+                        </div>
+                        <!-- Upload panel -->
+                        <div id="edit-panel-upload">
+                            <label for="edit_image_file" id="edit-drop-zone" class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-[#193366] hover:bg-blue-50/30 transition-all group">
+                                <i class="fa-solid fa-cloud-arrow-up text-2xl text-gray-300 group-hover:text-[#193366] transition-colors mb-1"></i>
+                                <span class="text-xs text-gray-400 group-hover:text-[#193366]">Click to browse or drag & drop</span>
+                                <span class="text-xs text-gray-300 mt-0.5">JPG, PNG, WEBP, GIF</span>
+                                <input type="file" id="edit_image_file" name="image_file" accept="image/*" class="hidden" onchange="previewEditImage(event)" />
+                            </label>
+                            <div id="edit-img-preview" class="mt-2 hidden">
+                                <img id="edit-img-preview-img" src="" alt="Preview" class="w-full h-40 object-cover rounded-xl border border-gray-200 shadow-sm" />
+                                <button type="button" onclick="clearEditImage()" class="mt-1 text-xs text-red-400 hover:text-red-600"><i class="fa-solid fa-xmark mr-1"></i>Remove</button>
+                            </div>
+                        </div>
+                        <!-- URL panel (default for edit, shows current image) -->
+                        <div id="edit-panel-url" class="hidden">
+                            <input type="text" name="image_url" id="edit_image_url" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#193366]" placeholder="https://images.unsplash.com/..." oninput="previewEditUrl(this.value)" />
+                            <div id="edit-url-preview" class="mt-2">
+                                <img id="edit-url-preview-img" src="" alt="Current Image" class="w-full h-40 object-cover rounded-xl border border-gray-200 shadow-sm" />
+                            </div>
+                        </div>
                     </div>
 
                     <div class="md:col-span-2">
@@ -795,26 +890,142 @@ if (isset($_GET['booking_id'])) {
 
         function openAddRoomModal() {
             document.getElementById('addRoomModal').classList.remove('hidden');
+            // Reset add form image state
+            switchAddTab('upload');
+            clearAddImage();
+            document.getElementById('add_image_url').value = '';
+            document.getElementById('add-url-preview').classList.add('hidden');
         }
 
         function closeAddRoomModal() {
             document.getElementById('addRoomModal').classList.add('hidden');
         }
 
+        // ---- Add Room image tab switching ----
+        function switchAddTab(tab) {
+            const uploadBtn = document.getElementById('add-tab-upload');
+            const urlBtn    = document.getElementById('add-tab-url');
+            const uploadPanel = document.getElementById('add-panel-upload');
+            const urlPanel    = document.getElementById('add-panel-url');
+            if (tab === 'upload') {
+                uploadBtn.classList.replace('bg-gray-100','bg-[#193366]');
+                uploadBtn.classList.replace('text-gray-500','text-white');
+                urlBtn.classList.replace('bg-[#193366]','bg-gray-100');
+                urlBtn.classList.replace('text-white','text-gray-500');
+                uploadPanel.classList.remove('hidden');
+                urlPanel.classList.add('hidden');
+            } else {
+                urlBtn.classList.replace('bg-gray-100','bg-[#193366]');
+                urlBtn.classList.replace('text-gray-500','text-white');
+                uploadBtn.classList.replace('bg-[#193366]','bg-gray-100');
+                uploadBtn.classList.replace('text-white','text-gray-500');
+                urlPanel.classList.remove('hidden');
+                uploadPanel.classList.add('hidden');
+            }
+        }
+
+        function previewAddImage(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                document.getElementById('add-img-preview-img').src = e.target.result;
+                document.getElementById('add-img-preview').classList.remove('hidden');
+                document.getElementById('add-drop-zone').classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearAddImage() {
+            document.getElementById('add_image_file').value = '';
+            document.getElementById('add-img-preview').classList.add('hidden');
+            document.getElementById('add-drop-zone').classList.remove('hidden');
+        }
+
+        function previewAddUrl(val) {
+            const preview = document.getElementById('add-url-preview');
+            const img = document.getElementById('add-url-preview-img');
+            if (val.trim()) {
+                img.src = val.trim();
+                preview.classList.remove('hidden');
+            } else {
+                preview.classList.add('hidden');
+            }
+        }
+
+        // ---- Edit Room ----
         function openEditRoomModal(room) {
             document.getElementById('edit_room_id').value = room.room_id;
             document.getElementById('edit_label').value = room.label;
             document.getElementById('edit_price').value = room.price;
             document.getElementById('edit_no_of_guests').value = room.no_of_guests;
             document.getElementById('edit_available').value = room.available;
-            document.getElementById('edit_image').value = room.image;
             document.getElementById('edit_features').value = room.features || '';
             document.getElementById('edit_description').value = room.description || '';
+            // Default to URL tab with current image pre-filled
+            switchEditTab('url');
+            document.getElementById('edit_image_url').value = room.image || '';
+            const prevImg = document.getElementById('edit-url-preview-img');
+            prevImg.src = room.image || '';
+            document.getElementById('edit-url-preview').classList.toggle('hidden', !room.image);
+            clearEditImage();
             document.getElementById('editRoomModal').classList.remove('hidden');
         }
 
         function closeEditRoomModal() {
             document.getElementById('editRoomModal').classList.add('hidden');
+        }
+
+        // ---- Edit Room image tab switching ----
+        function switchEditTab(tab) {
+            const uploadBtn = document.getElementById('edit-tab-upload');
+            const urlBtn    = document.getElementById('edit-tab-url');
+            const uploadPanel = document.getElementById('edit-panel-upload');
+            const urlPanel    = document.getElementById('edit-panel-url');
+            if (tab === 'upload') {
+                uploadBtn.classList.replace('bg-gray-100','bg-[#193366]');
+                uploadBtn.classList.replace('text-gray-500','text-white');
+                urlBtn.classList.replace('bg-[#193366]','bg-gray-100');
+                urlBtn.classList.replace('text-white','text-gray-500');
+                uploadPanel.classList.remove('hidden');
+                urlPanel.classList.add('hidden');
+            } else {
+                urlBtn.classList.replace('bg-gray-100','bg-[#193366]');
+                urlBtn.classList.replace('text-gray-500','text-white');
+                uploadBtn.classList.replace('bg-[#193366]','bg-gray-100');
+                uploadBtn.classList.replace('text-white','text-gray-500');
+                urlPanel.classList.remove('hidden');
+                uploadPanel.classList.add('hidden');
+            }
+        }
+
+        function previewEditImage(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                document.getElementById('edit-img-preview-img').src = e.target.result;
+                document.getElementById('edit-img-preview').classList.remove('hidden');
+                document.getElementById('edit-drop-zone').classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearEditImage() {
+            document.getElementById('edit_image_file').value = '';
+            document.getElementById('edit-img-preview').classList.add('hidden');
+            document.getElementById('edit-drop-zone').classList.remove('hidden');
+        }
+
+        function previewEditUrl(val) {
+            const preview = document.getElementById('edit-url-preview');
+            const img = document.getElementById('edit-url-preview-img');
+            if (val.trim()) {
+                img.src = val.trim();
+                preview.classList.remove('hidden');
+            } else {
+                preview.classList.add('hidden');
+            }
         }
     </script>
 </body>

@@ -29,6 +29,7 @@ session_start();
 
 <body class="">
     <?php include 'includes/logout_toast.php'; ?>
+    <?php include 'includes/login_toast.php'; ?>
     <nav class="container mx-auto">
         <div class="fixed top-0 left-0 right-0 z-40 lg:py-4 text-white transition-all duration-300" id="nav-cont">
             <div class="flex justify-between w-full items-center max-w-7xl ml-auto mr-auto px-6 py-2 lg:py-0">

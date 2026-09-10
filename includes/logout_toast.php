@@ -15,8 +15,8 @@
     animation: toastSlideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 </style>
-<div id="logout-toast" class="fixed top-6 right-6 z-50 flex items-center gap-3.5 bg-white/95 backdrop-blur-md text-gray-800 px-5 py-4 rounded-2xl shadow-2xl border border-emerald-100 animate-toast-pop">
-    <div class="w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold shrink-0 shadow-md shadow-emerald-200">
+<div id="logout-toast" class="fixed top-6 right-6 z-50 flex items-center gap-3.5 bg-white/95 backdrop-blur-md text-gray-800 px-5 py-4 rounded-2xl shadow-2xl border border-amber-100 animate-toast-pop">
+    <div class="w-9 h-9 rounded-full bg-amber-400 text-white flex items-center justify-center font-bold shrink-0 shadow-md shadow-amber-200">
         <i class="fa-solid fa-check text-base"></i>
     </div>
     <div class="pr-2">
