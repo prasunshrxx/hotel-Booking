@@ -37,6 +37,9 @@ if (isset($_POST['book_now'])) {
         $checkout_date = $_POST['checkout_date'];
         $no_of_guests = intval($_POST['no_of_guests']);
 
+        $phone_number = trim($_POST['phone_number'] ?? '');
+        $special_request = trim($_POST['special_request'] ?? '');
+
         // Calculate total days & total price
         $date1 = new DateTime($checkin_date);
         $date2 = new DateTime($checkout_date);
@@ -49,11 +52,12 @@ if (isset($_POST['book_now'])) {
             $tprice = $days * floatval($room['price']);
             $status = 'pending';
 
-            $insertStmt = mysqli_prepare($conn, "INSERT INTO booking (user_id, room_id, checkin_date, checkout_date, no_of_guests, tprice, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            mysqli_stmt_bind_param($insertStmt, "iissids", $user_id, $room_id, $checkin_date, $checkout_date, $no_of_guests, $tprice, $status);
+            $insertStmt = mysqli_prepare($conn, "INSERT INTO booking (user_id, room_id, checkin_date, checkout_date, no_of_guests, tprice, status, phone_number, special_request) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            mysqli_stmt_bind_param($insertStmt, "iissidsss", $user_id, $room_id, $checkin_date, $checkout_date, $no_of_guests, $tprice, $status, $phone_number, $special_request);
 
             if (mysqli_stmt_execute($insertStmt)) {
-                header("Location: cartpage.php");
+                $new_booking_id = mysqli_insert_id($conn);
+                header("Location: receipt.php?booking_id=" . $new_booking_id . "&new=1");
                 exit();
             } else {
                 $errorMsg = "Failed to process booking. Error: " . mysqli_error($conn);
@@ -179,6 +183,10 @@ if (isset($_POST['book_now'])) {
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
                                 <input type="email" value="<?php echo htmlspecialchars($_SESSION['email'] ?? 'guest@example.com'); ?>" readonly class="w-full p-3 bg-gray-100 border border-gray-300 rounded-lg text-gray-600 cursor-not-allowed outline-none" />
                             </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Contact Phone Number *</label>
+                                <input type="tel" name="phone_number" required placeholder="e.g. +977 9801234567" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#193366] outline-none" />
+                            </div>
                         </div>
                     </div>
 
@@ -196,6 +204,10 @@ if (isset($_POST['book_now'])) {
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Number of Guests *</label>
                                 <input type="number" name="no_of_guests" min="1" max="4" value="1" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#193366] outline-none" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Special Requests / Notes (Optional)</label>
+                                <textarea name="special_request" rows="2" placeholder="e.g. Quiet room requested, early check-in preference, airport pickup..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#193366] outline-none"></textarea>
                             </div>
                         </div>
                     </div>

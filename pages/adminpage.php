@@ -514,7 +514,10 @@ if (isset($_GET['booking_id'])) {
                                     }
 
                                     echo "
-                                             <a href='?tab=orders&booking_id=" . $row['booking_id'] . "&room_id=" . $filterRoom . "&status=" . urlencode($filterStatus) . "&sort=" . urlencode($sortBy) . "' class='inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 hover:bg-[#193366] hover:text-white transition-colors text-gray-500 flex-shrink-0 ml-auto' title='View booking details'>
+                                             <a href='receipt.php?booking_id=" . $row['booking_id'] . "' target='_blank' class='inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-50 hover:bg-blue-100 text-[#193366] transition-colors flex-shrink-0' title='View Receipt'>
+                                                 <i class='fa-solid fa-file-invoice text-[11px]'></i>
+                                             </a>
+                                             <a href='?tab=orders&booking_id=" . $row['booking_id'] . "&room_id=" . $filterRoom . "&status=" . urlencode($filterStatus) . "&sort=" . urlencode($sortBy) . "' class='inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 hover:bg-[#193366] hover:text-white transition-colors text-gray-500 flex-shrink-0' title='View booking details'>
                                                  <i class='fa-solid fa-chevron-right text-[10px]'></i>
                                              </a>
                                          </div>
@@ -669,9 +672,15 @@ if (isset($_GET['booking_id'])) {
                 </div>
                 <?php
                 if (isset($dataDialoug)) {
+                    echo '<div class="mt-4 pt-3 border-t border-gray-100">';
+                    echo '<a href="receipt.php?booking_id=' . $dataDialoug['booking_id'] . '" target="_blank" class="w-full py-2 rounded-full text-[#193366] border border-[#193366] hover:bg-blue-50 transition-all font-medium text-xs text-center flex items-center justify-center gap-1.5">';
+                    echo '<i class="fa-solid fa-file-invoice text-[#193366]"></i> View Receipt';
+                    echo '</a>';
+                    echo '</div>';
+
                     echo ($dataDialoug['status'] == 'cancelled' || $dataDialoug['status'] == 'checked out') 
                         ? ""
-                        : '<button type="submit" class="mt-6 w-full py-2.5 rounded-full text-white font-medium bg-[#193366] hover:bg-[#304775] transition-all cursor-pointer shadow-md text-sm" name="UpdateStatus">Update Status</button>';
+                        : '<button type="submit" class="mt-3 w-full py-2.5 rounded-full text-white font-medium bg-[#193366] hover:bg-[#304775] transition-all cursor-pointer shadow-md text-sm" name="UpdateStatus">Update Status</button>';
                 }
                 ?>
             </form>

@@ -60,7 +60,6 @@ if (isset($_SESSION['user_id'])) {
     mysqli_stmt_execute($stmtUserBookings);
     $res = mysqli_stmt_get_result($stmtUserBookings);
 
-    // Fetch user's distinct rooms for room-wise dropdown filter
     $sqlUserRooms = "SELECT DISTINCT rooms.room_id, rooms.label 
                      FROM booking 
                      JOIN rooms ON booking.room_id = rooms.room_id 
@@ -231,16 +230,21 @@ if (isset($_SESSION['user_id'])) {
                                         </td>
                                         <td class="p-4 font-bold text-gray-900">Rs. <?= number_format($row['tprice']) ?></td>
                                         <td class="p-4 text-center">
-                                            <div>
+                                            <div class="flex items-center justify-center gap-2">
+                                                <a href="receipt.php?booking_id=<?= $booking_id ?>" 
+                                                   class="inline-flex items-center gap-1.5 bg-[#193366] hover:bg-[#254685] text-white py-1 px-3 rounded-full text-xs font-semibold transition-all shadow-xs" 
+                                                   title="View Booking Receipt">
+                                                    <i class="fa-solid fa-file-invoice text-amber-300"></i> Receipt
+                                                </a>
                                                 <?php if ($row['status'] === 'cancelled'): ?>
-                                                    <span class="bg-gray-100 py-1 px-3.5 rounded-full text-xs font-medium text-gray-400">Cancelled</span>
+                                                    <span class="bg-gray-100 py-1 px-3 rounded-full text-xs font-medium text-gray-400">Cancelled</span>
                                                 <?php elseif ($row['status'] === 'checked out'): ?>
-                                                    <span class="bg-gray-100 py-1 px-3.5 rounded-full text-xs font-medium text-gray-600">Completed</span>
+                                                    <span class="bg-gray-100 py-1 px-3 rounded-full text-xs font-medium text-gray-600">Completed</span>
                                                 <?php else: ?>
                                                     <a href="cancle.php?roomId=<?= $room ?>&bookingId=<?= $booking_id ?>" 
                                                        onclick="return confirm('Are you sure you want to cancel this booking?')" 
-                                                       class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-1 px-3.5 rounded-full text-xs font-semibold transition-all">
-                                                        Cancel Booking
+                                                       class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-1 px-3 rounded-full text-xs font-semibold transition-all">
+                                                        Cancel
                                                     </a>
                                                 <?php endif; ?>
                                             </div>
