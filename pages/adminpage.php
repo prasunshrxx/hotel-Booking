@@ -1,5 +1,6 @@
 <?php
 include '../conn.php';
+require_once '../includes/mailer.php';
 session_start();
 
 if (!isset($_SESSION['isLogin']) || $_SESSION['role'] !== 'admin') {
@@ -25,6 +26,46 @@ if (isset($_POST['UpdateStatus']) && isset($_POST['status_change']) && isset($_G
     mysqli_stmt_bind_param($stmtStatus, "si", $status_change, $booking_id);
     
     if (mysqli_stmt_execute($stmtStatus)) {
+
+        // Send notification email when status becomes 'confirmed' or 'cancelled'
+        if (in_array($status_change, ['confirmed', 'cancelled'])) {
+            $stmtInfo = mysqli_prepare($conn,
+                "SELECT b.booking_id, b.checkin_date, b.checkout_date, b.tprice, b.no_of_guests, b.phone_number, b.special_request,
+                        r.label AS room_label,
+                        u.email AS user_email, u.username AS user_name
+                 FROM booking b
+                 LEFT JOIN rooms r ON b.room_id = r.room_id
+                 LEFT JOIN users u ON b.user_id = u.id
+                 WHERE b.booking_id = ?");
+            mysqli_stmt_bind_param($stmtInfo, "i", $booking_id);
+            mysqli_stmt_execute($stmtInfo);
+            $bInfo = mysqli_fetch_assoc(mysqli_stmt_get_result($stmtInfo));
+            mysqli_stmt_close($stmtInfo);
+
+            if ($bInfo && !empty($bInfo['user_email'])) {
+                if ($status_change === 'confirmed') {
+                    send_booking_email($bInfo['user_email'], $bInfo['user_name'], [
+                        'booking_id'      => $bInfo['booking_id'],
+                        'room_label'      => $bInfo['room_label'],
+                        'checkin_date'    => $bInfo['checkin_date'],
+                        'checkout_date'   => $bInfo['checkout_date'],
+                        'no_of_guests'    => $bInfo['no_of_guests'],
+                        'tprice'          => $bInfo['tprice'],
+                        'phone_number'    => $bInfo['phone_number'],
+                        'special_request' => $bInfo['special_request'] ?: 'None',
+                    ]);
+                } elseif ($status_change === 'cancelled') {
+                    send_cancellation_email($bInfo['user_email'], $bInfo['user_name'], [
+                        'booking_id'   => $bInfo['booking_id'],
+                        'room_label'   => $bInfo['room_label'],
+                        'checkin_date' => $bInfo['checkin_date'],
+                        'checkout_date'=> $bInfo['checkout_date'],
+                        'tprice'       => $bInfo['tprice'],
+                    ]);
+                }
+            }
+        }
+
         // Rebuild filter params so we return to the same filtered view
         $redirectParams = 'tab=orders&msg=status_updated';
         if (!empty($_GET['room_id']))  $redirectParams .= '&room_id='  . intval($_GET['room_id']);

@@ -1,5 +1,6 @@
 <?php
 include '../conn.php';
+require_once '../includes/mailer.php';
 session_start();
 
 if (!isset($_SESSION['isLogin'])) {
@@ -57,6 +58,23 @@ if (isset($_POST['book_now'])) {
 
             if (mysqli_stmt_execute($insertStmt)) {
                 $new_booking_id = mysqli_insert_id($conn);
+
+                // Send booking confirmation email (non-blocking – ignore mail errors)
+                $user_email = $_SESSION['email'] ?? '';
+                $user_name  = $_SESSION['username'] ?? '';
+                if (!empty($user_email)) {
+                    send_booking_email($user_email, $user_name, [
+                        'booking_id'      => $new_booking_id,
+                        'room_label'      => $room['label']      ?? 'Room',
+                        'checkin_date'    => $checkin_date,
+                        'checkout_date'   => $checkout_date,
+                        'no_of_guests'    => $no_of_guests,
+                        'tprice'          => $tprice,
+                        'phone_number'    => $phone_number,
+                        'special_request' => $special_request ?: 'None',
+                    ]);
+                }
+
                 header("Location: receipt.php?booking_id=" . $new_booking_id . "&new=1");
                 exit();
             } else {
