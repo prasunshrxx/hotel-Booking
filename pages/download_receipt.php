@@ -335,8 +335,11 @@ $pdf->Line(15, $footerY, 195, $footerY);
 
 $pdf->SetXY(15, $footerY + 3);
 $pdf->SetFont('Helvetica', 'B', 8);
-$pdf->SetTextColor($cDark[0], $cDark[1], $cDark[2]);
-$pdf->Cell(80, 5, 'Payment: Pay at Hotel / Check-in', 0, 0, 'L');
+$is_paid_pdf = (($booking['payment_status'] ?? '') === 'paid');
+$pay_text = $is_paid_pdf 
+    ? ('Payment: Paid via Khalti (Txn: ' . ($booking['transaction_id'] ?? 'Verified') . ')')
+    : 'Payment: Pay at Hotel / Check-in';
+$pdf->Cell(110, 5, $pay_text, 0, 0, 'L');
 
 $pdf->SetFont('Helvetica', '', 8);
 $pdf->SetTextColor($cMuted[0], $cMuted[1], $cMuted[2]);

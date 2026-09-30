@@ -217,6 +217,7 @@ if (isset($_SESSION['user_id'])) {
                                                 : "bg-blue-100 text-blue-700"));
                                     $room = $row['room_id'];
                                     $booking_id = $row['booking_id'];
+                                    $is_paid_cart = (($row['payment_status'] ?? '') === 'paid');
                                     ?>
                                     <tr class="border-b border-gray-100 hover:bg-gray-50/80 transition-colors text-sm text-gray-700">
                                         <td class="p-4 text-center font-medium">#BK-<?= htmlspecialchars($row['booking_id']) ?></td>
@@ -227,10 +228,28 @@ if (isset($_SESSION['user_id'])) {
                                             <span class="py-1 px-3.5 rounded-full text-xs font-semibold capitalize inline-block <?= $statClas ?>">
                                                 <?= htmlspecialchars($row['status']) ?>
                                             </span>
+                                            <div class="mt-1">
+                                                <?php if ($is_paid_cart): ?>
+                                                    <span class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200" title="Txn: <?= htmlspecialchars($row['transaction_id'] ?? '') ?>">
+                                                        <i class="fa-solid fa-circle-check text-[10px]"></i> Paid
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span class="inline-block text-[11px] font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                                                        Unpaid
+                                                    </span>
+                                                <?php endif; ?>
+                                            </div>
                                         </td>
                                         <td class="p-4 font-bold text-gray-900">Rs. <?= number_format($row['tprice']) ?></td>
                                         <td class="p-4 text-center">
-                                            <div class="flex items-center justify-center gap-2">
+                                            <div class="flex items-center justify-center gap-2 flex-wrap">
+                                                <?php if (!$is_paid_cart && $row['status'] !== 'cancelled'): ?>
+                                                    <a href="khalti_pay.php?booking_id=<?= $booking_id ?>" 
+                                                       class="inline-flex items-center gap-1 bg-[#5c2d91] hover:bg-[#4a2275] text-white py-1 px-3 rounded-full text-xs font-semibold transition-all shadow-xs cursor-pointer"
+                                                       title="Pay Now with Khalti">
+                                                        <i class="fa-solid fa-wallet text-amber-300"></i> Pay
+                                                    </a>
+                                                <?php endif; ?>
                                                 <a href="receipt.php?booking_id=<?= $booking_id ?>" 
                                                    class="inline-flex items-center gap-1.5 bg-[#193366] hover:bg-[#254685] text-white py-1 px-3 rounded-full text-xs font-semibold transition-all shadow-xs" 
                                                    title="View Booking Receipt">

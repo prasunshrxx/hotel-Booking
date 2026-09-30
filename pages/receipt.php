@@ -126,7 +126,26 @@ $is_new = isset($_GET['new']) && $_GET['new'] == '1';
 
     <main class="max-w-5xl mx-auto px-4 py-8">
 
-        <?php if ($is_new): ?>
+        <!-- Payment Success Banner -->
+        <?php if (isset($_GET['payment']) && $_GET['payment'] === 'success'): ?>
+        <div class="no-print mb-6 p-4 rounded-xl bg-purple-50 border border-purple-200 text-purple-950 flex items-center justify-between shadow-xs">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-[#5c2d91] text-white flex items-center justify-center flex-shrink-0">
+                    <i class="fa-solid fa-circle-check text-lg text-amber-300"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-base flex items-center gap-2">
+                        <span>Payment Completed via Khalti!</span>
+                        <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">Sandbox Verified</span>
+                    </h3>
+                    <p class="text-xs text-purple-800">Your reservation has been confirmed and paid. Transaction ID: <strong><?= htmlspecialchars($_GET['txn'] ?? $booking['transaction_id'] ?? 'Verified') ?></strong></p>
+                </div>
+            </div>
+            <a href="download_receipt.php?booking_id=<?= $booking['booking_id'] ?>" class="hidden sm:inline-flex items-center gap-2 px-3.5 py-2 bg-[#5c2d91] hover:bg-[#4a2275] text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer">
+                <i class="fa-solid fa-download"></i> Download PDF
+            </a>
+        </div>
+        <?php elseif ($is_new): ?>
         <!-- Booking Success Banner -->
         <div class="no-print mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 flex items-center justify-between shadow-xs">
             <div class="flex items-center gap-3">
@@ -144,6 +163,11 @@ $is_new = isset($_GET['new']) && $_GET['new'] == '1';
         </div>
         <?php endif; ?>
 
+        <?php 
+            $is_paid = (($booking['payment_status'] ?? '') === 'paid');
+            $pay_method = $booking['payment_method'] ?? 'pay_at_hotel';
+        ?>
+
         <!-- Printable / Exportable Receipt Container -->
         <div id="receipt-card" class="bg-white rounded-2xl shadow-md border border-gray-200 p-8 md:p-12 transition-all">
             
@@ -160,7 +184,7 @@ $is_new = isset($_GET['new']) && $_GET['new'] == '1';
                 </div>
 
                 <div class="text-left md:text-right">
-                    <div class="flex items-center md:justify-end gap-2 mb-1">
+                    <div class="flex items-center md:justify-end gap-2 mb-1 flex-wrap">
                         <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Booking Receipt</span>
                         <?php
                             $stat = strtolower(trim($booking['status']));
@@ -172,6 +196,15 @@ $is_new = isset($_GET['new']) && $_GET['new'] == '1';
                         <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide border <?= $badgeBg ?>">
                             <?= htmlspecialchars($booking['status']) ?>
                         </span>
+                        <?php if ($is_paid): ?>
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                <i class="fa-solid fa-circle-check"></i> Paid (Khalti)
+                            </span>
+                        <?php else: ?>
+                            <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide bg-amber-50 text-amber-800 border border-amber-300">
+                                Unpaid (Cash)
+                            </span>
+                        <?php endif; ?>
                     </div>
                     <h2 class="text-xl font-extrabold text-[#193366]">#LOTUS-BK-<?= htmlspecialchars($booking['booking_id']) ?></h2>
                     <p class="text-xs text-gray-500 mt-0.5">Date: <?= $booking_date ?></p>
@@ -267,7 +300,15 @@ $is_new = isset($_GET['new']) && $_GET['new'] == '1';
             <!-- Simple Footer -->
             <div class="pt-6 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center text-xs text-gray-500 gap-2">
                 <div>
-                    <span class="font-semibold text-gray-700">Payment:</span> Pay at Hotel / Check-in
+                    <span class="font-semibold text-gray-700">Payment:</span> 
+                    <?php if ($is_paid): ?>
+                        <span class="text-emerald-700 font-bold inline-flex items-center gap-1">
+                            <i class="fa-solid fa-circle-check"></i> Paid via Khalti
+                        </span>
+                        <span class="text-gray-400 font-mono text-[11px] ml-1">(Txn: <?= htmlspecialchars($booking['transaction_id'] ?? 'Verified') ?>)</span>
+                    <?php else: ?>
+                        <span class="text-amber-800 font-medium">Unpaid &bull; Pay at Hotel / Check-in</span>
+                    <?php endif; ?>
                 </div>
                 <div class="text-center sm:text-right">
                     Thank you for choosing LOTUS Luxury Boutique Hotel!
@@ -281,7 +322,12 @@ $is_new = isset($_GET['new']) && $_GET['new'] == '1';
             <a href="../index.php" class="text-gray-600 hover:text-black font-semibold flex items-center gap-2">
                 <i class="fa-solid fa-house"></i> Home
             </a>
-            <div class="flex gap-4">
+            <div class="flex items-center gap-3 flex-wrap">
+                <?php if (!$is_paid && strtolower($booking['status']) !== 'cancelled'): ?>
+                    <a href="khalti_pay.php?booking_id=<?= $booking['booking_id'] ?>" class="px-4 py-2 bg-[#5c2d91] hover:bg-[#4a2275] text-white font-semibold rounded-lg transition-colors inline-flex items-center gap-2 shadow-xs cursor-pointer">
+                        <i class="fa-solid fa-wallet text-amber-300"></i> Pay Now with Khalti
+                    </a>
+                <?php endif; ?>
                 <a href="room.php" class="text-[#193366] hover:underline font-semibold">
                     Browse Other Rooms
                 </a>

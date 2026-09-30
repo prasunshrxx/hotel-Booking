@@ -1,6 +1,7 @@
 <?php
 include '../conn.php';
 require_once '../includes/mailer.php';
+require_once '../includes/khalti.php';
 session_start();
 
 if (!isset($_SESSION['isLogin'])) {
@@ -40,6 +41,10 @@ if (isset($_POST['book_now'])) {
 
         $phone_number = trim($_POST['phone_number'] ?? '');
         $special_request = trim($_POST['special_request'] ?? '');
+        $payment_method = trim($_POST['payment_method'] ?? 'khalti');
+        if (!in_array($payment_method, ['khalti', 'pay_at_hotel'])) {
+            $payment_method = 'khalti';
+        }
 
         // Calculate total days & total price
         $date1 = new DateTime($checkin_date);
@@ -52,31 +57,55 @@ if (isset($_POST['book_now'])) {
         } else {
             $tprice = $days * floatval($room['price']);
             $status = 'pending';
+            $payment_status = 'unpaid';
 
-            $insertStmt = mysqli_prepare($conn, "INSERT INTO booking (user_id, room_id, checkin_date, checkout_date, no_of_guests, tprice, status, phone_number, special_request) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            mysqli_stmt_bind_param($insertStmt, "iissidsss", $user_id, $room_id, $checkin_date, $checkout_date, $no_of_guests, $tprice, $status, $phone_number, $special_request);
+            $insertStmt = mysqli_prepare($conn, "INSERT INTO booking (user_id, room_id, checkin_date, checkout_date, no_of_guests, tprice, status, phone_number, special_request, payment_method, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            mysqli_stmt_bind_param($insertStmt, "iissidsssss", $user_id, $room_id, $checkin_date, $checkout_date, $no_of_guests, $tprice, $status, $phone_number, $special_request, $payment_method, $payment_status);
 
             if (mysqli_stmt_execute($insertStmt)) {
                 $new_booking_id = mysqli_insert_id($conn);
-
-                // Send booking confirmation email (non-blocking – ignore mail errors)
                 $user_email = $_SESSION['email'] ?? '';
-                $user_name  = $_SESSION['username'] ?? '';
-                if (!empty($user_email)) {
-                    send_booking_email($user_email, $user_name, [
-                        'booking_id'      => $new_booking_id,
-                        'room_label'      => $room['label']      ?? 'Room',
-                        'checkin_date'    => $checkin_date,
-                        'checkout_date'   => $checkout_date,
-                        'no_of_guests'    => $no_of_guests,
-                        'tprice'          => $tprice,
-                        'phone_number'    => $phone_number,
-                        'special_request' => $special_request ?: 'None',
-                    ]);
-                }
+                $user_name  = $_SESSION['username'] ?? 'Valued Guest';
 
-                header("Location: receipt.php?booking_id=" . $new_booking_id . "&new=1");
-                exit();
+                // If user chose Khalti, initiate payment gateway
+                if ($payment_method === 'khalti') {
+                    $init = khalti_initiate_payment($new_booking_id, $tprice, $room['label'] ?? 'Hotel Room', $user_name, $user_email, $phone_number);
+
+                    if ($init['success'] && !empty($init['payment_url'])) {
+                        // Store pidx
+                        $pidx = $init['pidx'];
+                        $upStmt = mysqli_prepare($conn, "UPDATE booking SET pidx = ? WHERE booking_id = ?");
+                        mysqli_stmt_bind_param($upStmt, "si", $pidx, $new_booking_id);
+                        mysqli_stmt_execute($upStmt);
+                        mysqli_stmt_close($upStmt);
+
+                        // Redirect to Khalti (Sandbox / Hosted Gateway)
+                        header("Location: " . $init['payment_url']);
+                        exit();
+                    } else {
+                        // In case initiation fails, fallback to receipt with error notice
+                        $errMsg = $init['error'] ?? 'Khalti initiation failed';
+                        header("Location: receipt.php?booking_id=" . $new_booking_id . "&new=1&khalti_err=" . urlencode($errMsg));
+                        exit();
+                    }
+                } else {
+                    // Pay at Hotel: Send pending confirmation email
+                    if (!empty($user_email)) {
+                        send_booking_email($user_email, $user_name, [
+                            'booking_id'      => $new_booking_id,
+                            'room_label'      => $room['label']      ?? 'Room',
+                            'checkin_date'    => $checkin_date,
+                            'checkout_date'   => $checkout_date,
+                            'no_of_guests'    => $no_of_guests,
+                            'tprice'          => $tprice,
+                            'phone_number'    => $phone_number,
+                            'special_request' => $special_request ?: 'None',
+                        ]);
+                    }
+
+                    header("Location: receipt.php?booking_id=" . $new_booking_id . "&new=1");
+                    exit();
+                }
             } else {
                 $errorMsg = "Failed to process booking. Error: " . mysqli_error($conn);
             }
@@ -230,10 +259,65 @@ if (isset($_POST['book_now'])) {
                         </div>
                     </div>
 
-                    <button type="submit" name="book_now" class="w-full py-4 bg-[#193366] hover:bg-[#254685] text-white font-semibold rounded-lg shadow-md transition-all duration-200 text-lg cursor-pointer">
-                        Confirm & Reserve Room
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Select Payment Method</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Khalti Option -->
+                            <label id="opt-khalti" class="payment-option relative flex items-start p-4 border-2 border-[#5c2d91] bg-purple-50/50 rounded-xl cursor-pointer transition-all">
+                                <input type="radio" name="payment_method" value="khalti" checked class="mt-1 mr-3 text-[#5c2d91] focus:ring-[#5c2d91] cursor-pointer" onchange="updatePayOption('khalti')" />
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="px-2 py-0.5 rounded text-xs font-black bg-[#5c2d91] text-white tracking-wide">KHALTI</span>
+                                        <span class="font-bold text-gray-900 text-sm">Pay with Khalti</span>
+                                        <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">Sandbox</span>
+                                    </div>
+                                    <p class="text-xs text-gray-600 mt-1.5 leading-relaxed">
+                                        Instant digital payment via Khalti wallet, mobile banking, or test account.
+                                    </p>
+                                </div>
+                            </label>
+
+                            <!-- Pay at Hotel Option -->
+                            <label id="opt-hotel" class="payment-option relative flex items-start p-4 border-2 border-gray-200 rounded-xl cursor-pointer transition-all hover:bg-gray-50">
+                                <input type="radio" name="payment_method" value="pay_at_hotel" class="mt-1 mr-3 text-gray-900 focus:ring-gray-900 cursor-pointer" onchange="updatePayOption('pay_at_hotel')" />
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fa-solid fa-hotel text-amber-600 text-sm"></i>
+                                        <span class="font-bold text-gray-900 text-sm">Pay at Hotel</span>
+                                    </div>
+                                    <p class="text-xs text-gray-600 mt-1.5 leading-relaxed">
+                                        Reserve now and pay in cash or card upon check-in at the hotel front desk.
+                                    </p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" name="book_now" id="submit-pay-btn" class="w-full py-4 bg-[#5c2d91] hover:bg-[#4a2275] text-white font-semibold rounded-lg shadow-md transition-all duration-200 text-lg cursor-pointer flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-wallet"></i> <span>Pay with Khalti &amp; Confirm Booking</span>
                     </button>
                 </form>
+            </div>
+
+            <script>
+                function updatePayOption(method) {
+                    const btn = document.getElementById('submit-pay-btn');
+                    const optKhalti = document.getElementById('opt-khalti');
+                    const optHotel = document.getElementById('opt-hotel');
+
+                    if (method === 'khalti') {
+                        optKhalti.className = "payment-option relative flex items-start p-4 border-2 border-[#5c2d91] bg-purple-50/50 rounded-xl cursor-pointer transition-all";
+                        optHotel.className = "payment-option relative flex items-start p-4 border-2 border-gray-200 rounded-xl cursor-pointer transition-all hover:bg-gray-50";
+                        btn.className = "w-full py-4 bg-[#5c2d91] hover:bg-[#4a2275] text-white font-semibold rounded-lg shadow-md transition-all duration-200 text-lg cursor-pointer flex items-center justify-center gap-2";
+                        btn.innerHTML = '<i class="fa-solid fa-wallet"></i> <span>Pay with Khalti &amp; Confirm Booking</span>';
+                    } else {
+                        optHotel.className = "payment-option relative flex items-start p-4 border-2 border-[#193366] bg-blue-50/50 rounded-xl cursor-pointer transition-all";
+                        optKhalti.className = "payment-option relative flex items-start p-4 border-2 border-gray-200 rounded-xl cursor-pointer transition-all hover:bg-gray-50";
+                        btn.className = "w-full py-4 bg-[#193366] hover:bg-[#254685] text-white font-semibold rounded-lg shadow-md transition-all duration-200 text-lg cursor-pointer flex items-center justify-center gap-2";
+                        btn.innerHTML = '<i class="fa-solid fa-hotel"></i> <span>Confirm &amp; Reserve Room (Pay at Hotel)</span>';
+                    }
+                }
+            </script>
             </div>
 
         </div>

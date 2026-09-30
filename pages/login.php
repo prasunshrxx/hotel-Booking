@@ -213,22 +213,15 @@ $has_pending_otp = isset($_SESSION['pending_registration']);
     <link rel="stylesheet" href="../css/style.css" />
     <style>
         .otp-input:focus {
-            box-shadow: 0 0 15px rgba(251, 191, 36, 0.4);
-            border-color: #fbbf24;
-        }
-        @keyframes otpPulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.05); opacity: 0.9; }
-        }
-        .animate-otp-pulse {
-            animation: otpPulse 3s ease-in-out infinite;
+            border-color: #111827;
+            background-color: #ffffff;
         }
     </style>
 </head>
 
 <body class="text-poppins min-h-screen relative flex items-center justify-center" style="background: #0a0f1e;">
     <!-- Full-screen luxury hotel background -->
-    <div class="fixed inset-0 z-0" style="background-image: url('https://dwarikas.com/media/site/1e1069b432-1780289916/dwarikas_elisehassey_7512copy-1920x-q85.webp'); background-size: cover; background-position: center; filter: blur(3px) brightness(0.92); transform: scale(1.05);"></div>
+    <div class="fixed inset-0 z-0" style="background-image: url('../assets/hero-bg.jpg'), url('https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1920&q=85'); background-size: cover; background-position: center; filter: blur(3px) brightness(0.92); transform: scale(1.05);"></div>
     <!-- Gradient overlay for depth -->
     <div class="fixed inset-0 z-0" style="background: linear-gradient(135deg, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.30) 100%);"></div>
     
@@ -311,23 +304,14 @@ $has_pending_otp = isset($_SESSION['pending_registration']);
         $remaining_seconds = max(0, $expires_at - $now);
         $resend_cooldown = max(0, $resend_at - $now);
     ?>
-    <div id="otp-modal" class="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/75 backdrop-blur-md transition-opacity">
-        <div class="relative w-full max-w-md bg-[#0d1527] border border-amber-400/30 rounded-3xl p-7 shadow-2xl shadow-black/80 text-white overflow-hidden">
-            <!-- Ambient gold glow accent -->
-            <div class="absolute -top-16 -left-16 w-36 h-36 bg-amber-400/20 rounded-full blur-2xl pointer-events-none"></div>
-            <div class="absolute -bottom-16 -right-16 w-36 h-36 bg-amber-400/10 rounded-full blur-2xl pointer-events-none"></div>
-
-            <div class="text-center relative z-10">
-                <!-- Glowing Icon -->
-                <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500/20 to-amber-300/10 border border-amber-400/40 text-amber-400 flex items-center justify-center mx-auto mb-4 text-2xl shadow-lg shadow-amber-500/10 animate-otp-pulse">
-                    <i class="fa-solid fa-envelope-circle-check"></i>
-                </div>
-
-                <h2 class="text-2xl font-bold tracking-wide text-white">Verify Your Email</h2>
-                <p class="text-xs text-white/60 mt-1.5 px-2">
+    <div id="otp-modal" class="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60 transition-opacity">
+        <div class="relative w-full max-w-md bg-white border border-gray-200 rounded-xl p-6 sm:p-7 shadow-lg text-gray-900">
+            <div class="text-center">
+                <h2 class="text-xl font-bold text-gray-900">Verify Your Email</h2>
+                <p class="text-xs text-gray-600 mt-1.5">
                     We sent a 6-digit verification code to
                 </p>
-                <div class="mt-1 font-semibold text-amber-300 text-sm tracking-wide break-all">
+                <div class="mt-1 font-semibold text-gray-900 text-sm break-all">
                     <?php echo htmlspecialchars($pending_email); ?>
                 </div>
 
@@ -336,66 +320,66 @@ $has_pending_otp = isset($_SESSION['pending_registration']);
                 if (($active_mail_cfg['driver'] ?? 'mail') === 'mail'): 
                 ?>
                     <div class="mt-2.5">
-                        <a href="http://localhost:8025" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 text-[11px] font-medium border border-amber-400/30 transition-all shadow-sm">
-                            <i class="fa-solid fa-inbox"></i> Laragon Mailpit: Click here to view OTP <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                        <a href="http://localhost:8025" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium border border-gray-300 transition-colors">
+                            <i class="fa-solid fa-inbox text-gray-500"></i> Mailpit: View OTP <i class="fa-solid fa-arrow-up-right-from-square text-[9px] text-gray-500"></i>
                         </a>
                     </div>
                 <?php endif; ?>
 
                 <!-- Status Messages -->
                 <?php if (!empty($otp_error)): ?>
-                    <div class="mt-4 p-2.5 rounded-xl bg-red-500/15 border border-red-500/30 text-red-300 text-xs font-medium text-center">
+                    <div class="mt-4 p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-medium text-center">
                         <i class="fa-solid fa-circle-exclamation mr-1.5"></i><?php echo htmlspecialchars($otp_error); ?>
                     </div>
                 <?php endif; ?>
 
                 <?php if (!empty($otp_success)): ?>
-                    <div class="mt-4 p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-medium text-center">
+                    <div class="mt-4 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium text-center">
                         <i class="fa-solid fa-circle-check mr-1.5"></i><?php echo htmlspecialchars($otp_success); ?>
                     </div>
                 <?php endif; ?>
 
                 <!-- OTP Form -->
-                <form id="otp-form" method="POST" action="" class="mt-6">
+                <form id="otp-form" method="POST" action="" class="mt-5">
                     <input type="hidden" name="otp_code" id="otp_full_code" value="" />
 
                     <!-- 6 Digit Input Group -->
-                    <div class="flex justify-center items-center gap-2 sm:gap-3" id="otp-inputs">
+                    <div class="flex justify-center items-center gap-2 sm:gap-2.5" id="otp-inputs">
                         <?php for ($i = 0; $i < 6; $i++): ?>
                             <input type="text"
                                 maxlength="1"
                                 inputmode="numeric"
                                 autocomplete="off"
                                 data-index="<?php echo $i; ?>"
-                                class="otp-input w-11 h-13 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-bold font-mono bg-white/5 border border-white/20 rounded-xl text-amber-300 placeholder-white/20 focus:outline-none focus:bg-white/10 transition-all shadow-inner"
+                                class="otp-input w-11 h-12 sm:w-12 sm:h-13 text-center text-xl sm:text-2xl font-bold font-mono bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:border-gray-900 transition-colors"
                                 required />
                         <?php endfor; ?>
                     </div>
 
                     <!-- Expiry Countdown -->
-                    <div class="flex items-center justify-center gap-1.5 mt-4 text-xs text-white/60">
-                        <i class="fa-regular fa-clock text-amber-400"></i>
+                    <div class="flex items-center justify-center gap-1.5 mt-3.5 text-xs text-gray-500">
+                        <i class="fa-regular fa-clock"></i>
                         <span>Code expires in:</span>
-                        <span id="countdown-timer" class="font-mono font-semibold text-amber-300">--:--</span>
+                        <span id="countdown-timer" class="font-mono font-semibold text-gray-800">--:--</span>
                     </div>
 
                     <!-- Verify Button -->
                     <button type="submit"
                         name="verify_otp"
                         id="verify-btn"
-                        class="w-full mt-5 py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-gray-950 font-bold text-sm tracking-wide transition-all shadow-lg shadow-amber-500/20 active:scale-[0.99] cursor-pointer">
+                        class="w-full mt-4 py-2.5 rounded-lg bg-gray-900 hover:bg-black text-white font-semibold text-sm transition-colors cursor-pointer">
                         Verify &amp; Create Account
                     </button>
                 </form>
 
                 <!-- Resend & Cancel Options -->
-                <div class="mt-4 pt-4 border-t border-white/10 flex flex-col gap-2.5 text-xs text-white/70">
+                <div class="mt-4 pt-4 border-t border-gray-200 flex flex-col gap-2 text-xs text-gray-600">
                     <form method="POST" action="" id="resend-form">
                         <span>Didn't receive the code?</span>
                         <button type="submit"
                             name="resend_otp"
                             id="resend-btn"
-                            class="text-amber-400 hover:text-amber-300 font-semibold underline underline-offset-2 ml-1 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline">
+                            class="text-gray-900 hover:underline font-semibold ml-1 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline">
                             Resend Code <span id="resend-timer"></span>
                         </button>
                     </form>
@@ -403,7 +387,7 @@ $has_pending_otp = isset($_SESSION['pending_registration']);
                     <form method="POST" action="">
                         <button type="submit"
                             name="cancel_otp"
-                            class="text-white/50 hover:text-white/80 transition-colors text-xs inline-flex items-center gap-1.5 cursor-pointer mt-1">
+                            class="text-gray-500 hover:text-gray-900 hover:underline transition-colors text-xs inline-flex items-center justify-center gap-1.5 cursor-pointer mt-1">
                             <i class="fa-solid fa-arrow-left text-[10px]"></i> Change email / Back to registration
                         </button>
                     </form>

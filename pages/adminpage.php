@@ -519,7 +519,10 @@ if (isset($_GET['booking_id'])) {
                             <?php
                             if ($res && mysqli_num_rows($res) > 0) {
                                 while ($row = mysqli_fetch_assoc($res)) {
-
+                                    $is_paid_admin = (($row['payment_status'] ?? '') === 'paid');
+                                    $pay_badge = $is_paid_admin
+                                        ? "<div class='mt-1'><span class='inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200' title='Khalti Txn: " . htmlspecialchars($row['transaction_id'] ?? '') . "'><i class='fa-solid fa-circle-check text-[10px]'></i> Paid</span></div>"
+                                        : "<div class='mt-1'><span class='inline-block text-[11px] font-medium text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200'>Unpaid</span></div>";
 
                                     echo "
                                     <tr class='border-b border-gray-100 hover:bg-gray-50/80 transition-colors text-sm text-gray-700'>
@@ -528,7 +531,7 @@ if (isset($_GET['booking_id'])) {
                                         <td class='p-4 font-medium text-blue-900'>" . htmlspecialchars($row['label'] ?? 'N/A') . "</td>
                                         <td class='p-4'>" . htmlspecialchars($row['checkin_date']) . "</td>
                                         <td class='p-4'>" . htmlspecialchars($row['checkout_date']) . "</td>
-                                        <td class='p-4 font-semibold text-gray-900'>Rs. " . htmlspecialchars(number_format($row['tprice'])) . "</td>
+                                        <td class='p-4 font-semibold text-gray-900'>Rs. " . htmlspecialchars(number_format($row['tprice'])) . "$pay_badge</td>
                                         <td class='p-4'>
                                              <div class='flex items-center justify-between gap-2 min-w-[140px]'>";
 
@@ -679,7 +682,16 @@ if (isset($_GET['booking_id'])) {
                         </div>
                         <div class="mb-3">
                             <h4 class="text-xs text-gray-500 font-medium">Total Amount</h4>
-                            <p class="text-sm text-emerald-700 font-bold">Rs. <?= htmlspecialchars($dataDialoug['tprice'] ?? '') ?></p>
+                            <p class="text-sm text-emerald-700 font-bold">Rs. <?= htmlspecialchars(number_format($dataDialoug['tprice'] ?? 0)) ?></p>
+                        </div>
+                        <div class="mb-3">
+                            <h4 class="text-xs text-gray-500 font-medium">Payment Info</h4>
+                            <p class="text-xs font-bold <?= (($dataDialoug['payment_status'] ?? '') === 'paid') ? 'text-emerald-700' : 'text-amber-700' ?>">
+                                <?= (($dataDialoug['payment_status'] ?? '') === 'paid') ? '✓ Paid via Khalti' : 'Unpaid (Pay at Hotel)' ?>
+                            </p>
+                            <?php if (!empty($dataDialoug['transaction_id'])): ?>
+                                <p class="text-[10px] text-gray-500 font-mono mt-0.5">Txn: <?= htmlspecialchars($dataDialoug['transaction_id']) ?></p>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <div>
